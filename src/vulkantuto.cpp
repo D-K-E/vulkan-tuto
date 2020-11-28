@@ -17,7 +17,8 @@ std::vector<const char *> requested_validation_layers = {
   Enable validation layers for debug build. NDEBUG macro is
   a part of c++ standard.
  */
-#ifndef NDEBUG
+
+#ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
 const bool enableValidationLayers = true;
@@ -213,18 +214,18 @@ private:
     Destroy window, and other ressources.
    */
   void cleanUp() {
-    //
+    // 1. destroy debugging utils
     if (enableValidationLayers) {
       DestroyDebugUtilsMessengerEXT(
           instance, debugMessenger, nullptr);
     }
-    // 1. destroy instance
+    // 2. destroy instance
     vkDestroyInstance(instance, nullptr);
 
-    // 2. destroy window
+    // 3. destroy window
     glfwDestroyWindow(window);
 
-    // 3. glfw terminate
+    // 4. glfw terminate
     glfwTerminate();
   }
 
