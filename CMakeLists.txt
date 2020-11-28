@@ -16,8 +16,8 @@ set(AbsPathPrefix
 
 # executables
 add_executable(
-    ex01.out 
-    "src/ex01.cpp"
+    vulkantuto.out 
+    "src/vulkantuto.cpp"
 )
 
 include_directories("./include/")
@@ -26,9 +26,9 @@ include_directories("./include/")
 
 # vulkan
 find_package(Vulkan REQUIRED)
-target_include_directories(ex01.out PUBLIC ${Vulkan_INCLUDE_DIRS})
+target_include_directories(vulkantuto.out PUBLIC ${Vulkan_INCLUDE_DIRS})
 
-target_link_libraries(ex01.out ${Vulkan_LIBRARY_DIRS})
+target_link_libraries(vulkantuto.out ${Vulkan_LIBRARY_DIRS})
 
 # glfw
 # find_package(glfw3 REQUIRED)
@@ -36,7 +36,7 @@ add_library(glfwLib SHARED IMPORTED)
 set_target_properties(glfwLib PROPERTIES IMPORTED_LOCATION
     "${AbsPathPrefix}/glfw/bin/lib/libglfw.so")
 include_directories("${AbsPathPrefix}/glfw/bin/include/")
-target_link_libraries(ex01.out glfwLib)
+target_link_libraries(vulkantuto.out glfwLib)
 
 # glm
 # find_package(glm REQUIRED)
@@ -53,9 +53,9 @@ set_target_properties(
     AssimpLib PROPERTIES IMPORTED_LOCATION 
     "${AbsPathPrefix}/assimp/build/bin/libassimp.so"
 )
-target_link_libraries(ex01.out AssimpLib)
+target_link_libraries(vulkantuto.out AssimpLib)
 
 # libs
 
-install(TARGETS ex01.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
+install(TARGETS vulkantuto.out DESTINATION "${PROJECT_SOURCE_DIR}/bin/")
 

@@ -1,10 +1,5 @@
 // main file
-#include <GLFW/glfw3.h>
-#include <cstdint>
-#include <cstdlib>
-#include <exception>
 #include <external.hpp>
-#include <stdexcept>
 //
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
