@@ -25,10 +25,17 @@ include_directories("./include/")
 # libs and linking etc
 
 # vulkan
-find_package(Vulkan REQUIRED)
-target_include_directories(vulkantuto.out PUBLIC ${Vulkan_INCLUDE_DIRS})
+set(VulkanPath "${AbsPathPrefix}/vulkan-tuto/vulcan-sdk/1.2.154.0/x86_64")
+# find_package(Vulkan REQUIRED)
+add_library(VulkanLib SHARED IMPORTED)
+set_target_properties(VulkanLib PROPERTIES IMPORTED_LOCATION
+    "${VulkanPath}/lib/libvulkan.so"
+)
+message("Vulkan Include Path: ${VulkanPath}/include/")
+message("Vulkan Library Path: ${VulkanPath}/lib/libvulkan.so")
+include_directories("${VulkanPath}/include/")
 
-target_link_libraries(vulkantuto.out ${Vulkan_LIBRARY_DIRS})
+target_link_libraries(vulkantuto.out VulkanLib)
 
 # glfw
 # find_package(glfw3 REQUIRED)
