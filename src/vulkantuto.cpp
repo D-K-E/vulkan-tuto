@@ -1,7 +1,6 @@
 // main file
 #include <cstdint>
 #include <external.hpp>
-#include <stdexcept>
 #include <utils.hpp>
 //
 const uint32_t WIDTH = 800;
@@ -63,6 +62,7 @@ void DestroyDebugUtilsMessengerEXT(
 struct QueuFamilyIndices {
   //
   std::optional<uint32_t> graphics_family;
+  std::optional<uint32_t> present_family;
   bool is_complete() { return graphics_family.has_value(); }
 };
 
@@ -87,6 +87,12 @@ public:
 
   /** physical device handler*/
   VkPhysicalDevice physicalDev = VK_NULL_HANDLE;
+
+  /** logical device handler */
+  VkDevice l_device;
+
+  /** graphics queue */
+  VkQueue graphics_queue;
 
 public:
   HelloTriangle() {}
@@ -150,6 +156,9 @@ private:
 
     // 3. Pick physical device
     pickPhysicalDevice();
+
+    // 4. Create logical device
+    createLogicalDevice();
   }
 
   /**
@@ -445,6 +454,56 @@ private:
                                "respond to any of "
                                "available queueFamilies");
     }
+  }
+
+  void createLogicalDevice() {
+    //
+    QueuFamilyIndices indices =
+        find_family_indices(physicalDev);
+
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType =
+        VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex =
+        indices.graphics_family.value();
+    queueCreateInfo.queueCount = 1;
+
+    //
+    float queuePriority = 1.0f;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    //
+    VkPhysicalDeviceFeatures deviceFeature{};
+
+    //
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType =
+        VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.queueCreateInfoCount = 1;
+
+    createInfo.pEnabledFeatures = &deviceFeature;
+    createInfo.enabledExtensionCount = 0;
+
+    //
+    if (enableValidationLayers) {
+      createInfo.enabledLayerCount = static_cast<uint32_t>(
+          requested_validation_layers.size());
+      createInfo.ppEnabledLayerNames =
+          requested_validation_layers.data();
+    } else {
+      createInfo.enabledLayerCount = 0;
+    }
+    CHECK_VK(vkCreateDevice(physicalDev, &createInfo,
+                            nullptr, &l_device),
+             "failed to create a logical device given "
+             "create info params");
+
+    //
+    vkGetDeviceQueue(l_device,
+                     indices.graphics_family.value(), 0,
+                     &graphics_queue);
   }
 };
 
