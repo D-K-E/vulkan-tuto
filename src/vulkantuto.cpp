@@ -416,7 +416,7 @@ private:
     return indices;
   }
 
-  pickPhysicalDevice() {
+  void pickPhysicalDevice() {
     //
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(instance, &device_count,
