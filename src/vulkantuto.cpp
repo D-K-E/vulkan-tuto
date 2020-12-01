@@ -1,5 +1,7 @@
 // main file
+#include <cstdint>
 #include <external.hpp>
+#include <stdexcept>
 #include <utils.hpp>
 //
 const uint32_t WIDTH = 800;
@@ -58,6 +60,12 @@ void DestroyDebugUtilsMessengerEXT(
   }
 }
 
+struct QueuFamilyIndices {
+  //
+  std::optional<uint32_t> graphics_family;
+  bool is_complete() { return graphics_family.has_value(); }
+};
+
 /**
   @brief Hello Triangle application object.
 
@@ -76,6 +84,9 @@ public:
 
   /** debug callback function handler */
   VkDebugUtilsMessengerEXT debugMessenger;
+
+  /** physical device handler*/
+  VkPhysicalDevice physicalDev = VK_NULL_HANDLE;
 
 public:
   HelloTriangle() {}
@@ -136,6 +147,9 @@ private:
 
     // 2. Setup debug messenger
     setupDebugMessenger();
+
+    // 3. Pick physical device
+    pickPhysicalDevice();
   }
 
   /**
@@ -352,6 +366,85 @@ private:
           VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
     return extensions;
+  }
+
+  /**
+    Check if given device is complete
+
+    We find the QueuFamilyIndices for the device and
+    check if it is complete
+   */
+  bool is_device_ok(VkPhysicalDevice pdev) {
+    //
+    QueuFamilyIndices indices = find_family_indices(pdev);
+    return indices.is_complete();
+  }
+  /**
+    Find device family indices for given VkPhysicalDevice
+
+    We query the given physical device for physical device
+    family properties. We break away if the device has
+    complete
+    number of indices for given device family.
+   */
+  QueuFamilyIndices
+  find_family_indices(VkPhysicalDevice pdev) {
+    //
+    QueuFamilyIndices indices;
+    uint32_t familyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        pdev, &familyCount, nullptr);
+    //
+    std::vector<VkQueueFamilyProperties> queueFamilies(
+        familyCount);
+
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        pdev, &familyCount, queueFamilies.data());
+
+    uint32_t i = 0;
+    for (const auto &qfamily : queueFamilies) {
+      //
+      if (qfamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        indices.graphics_family = i;
+      }
+
+      if (indices.is_complete()) {
+        break;
+      }
+      i++;
+    }
+    return indices;
+  }
+
+  pickPhysicalDevice() {
+    //
+    uint32_t device_count = 0;
+    vkEnumeratePhysicalDevices(instance, &device_count,
+                               nullptr);
+
+    //
+    if (device_count == 0) {
+      throw std::runtime_error(
+          "Vulkan api is not supported by your hardware");
+    }
+    std::vector<VkPhysicalDevice> devices(device_count);
+    vkEnumeratePhysicalDevices(instance, &device_count,
+                               devices.data());
+
+    for (const auto &device : devices) {
+      //
+      if (is_device_ok(device)) {
+        //
+        physicalDev = device;
+        break;
+      }
+    }
+    if (physicalDev == VK_NULL_HANDLE) {
+      //
+      throw std::runtime_error("Your device does not "
+                               "respond to any of "
+                               "available queueFamilies");
+    }
   }
 };
 
