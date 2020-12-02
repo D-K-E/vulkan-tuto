@@ -63,7 +63,10 @@ struct QueuFamilyIndices {
   //
   std::optional<uint32_t> graphics_family;
   std::optional<uint32_t> present_family;
-  bool is_complete() { return graphics_family.has_value(); }
+  bool is_complete() {
+    return graphics_family.has_value() &&
+           present_family.has_value();
+  }
 };
 
 /**
@@ -85,6 +88,9 @@ public:
   /** debug callback function handler */
   VkDebugUtilsMessengerEXT debugMessenger;
 
+  /** window surface object*/
+  VkSurfaceKHR surface;
+
   /** physical device handler*/
   VkPhysicalDevice physicalDev = VK_NULL_HANDLE;
 
@@ -93,6 +99,9 @@ public:
 
   /** graphics queue */
   VkQueue graphics_queue;
+
+  /** window surface queue*/
+  VkQueue present_queue;
 
 public:
   HelloTriangle() {}
@@ -153,6 +162,9 @@ private:
 
     // 2. Setup debug messenger
     setupDebugMessenger();
+
+    // 3. Create surface
+    createSurface();
 
     // 3. Pick physical device
     pickPhysicalDevice();
@@ -237,18 +249,22 @@ private:
     Destroy window, and other ressources.
    */
   void cleanUp() {
+    //
+    vkDestroyDevice(l_device, nullptr);
     // 1. destroy debugging utils
     if (enableValidationLayers) {
       DestroyDebugUtilsMessengerEXT(
           instance, debugMessenger, nullptr);
     }
-    // 2. destroy instance
+    // 2. destroy surface
+    vkDestroySurfaceKHR(instance, surface, nullptr);
+    // 3. destroy instance
     vkDestroyInstance(instance, nullptr);
 
-    // 3. destroy window
+    // 4. destroy window
     glfwDestroyWindow(window);
 
-    // 4. glfw terminate
+    // 5. glfw terminate
     glfwTerminate();
   }
 
@@ -319,6 +335,11 @@ private:
         VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     //
     createInfo.pfnUserCallback = debugCallback;
+  }
+  void createSurface() {
+    CHECK_VK(glfwCreateWindowSurface(instance, window,
+                                     nullptr, &surface),
+             "failed to create window surface");
   }
 
   /**
@@ -417,6 +438,14 @@ private:
         indices.graphics_family = i;
       }
 
+      VkBool32 present_support = false;
+      vkGetPhysicalDeviceSurfaceSupportKHR(
+          pdev, i, surface, &present_support);
+
+      if (present_support) {
+        indices.present_family = i;
+      }
+
       if (indices.is_complete()) {
         break;
       }
@@ -461,16 +490,21 @@ private:
     QueuFamilyIndices indices =
         find_family_indices(physicalDev);
 
-    VkDeviceQueueCreateInfo queueCreateInfo{};
-    queueCreateInfo.sType =
-        VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex =
-        indices.graphics_family.value();
-    queueCreateInfo.queueCount = 1;
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies = {
+        indices.graphics_family.value(),
+        indices.present_family.value()};
 
-    //
     float queuePriority = 1.0f;
-    queueCreateInfo.pQueuePriorities = &queuePriority;
+    for (uint32_t qfamily : uniqueQueueFamilies) {
+      VkDeviceQueueCreateInfo queueCreateInfo{};
+      queueCreateInfo.sType =
+          VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+      queueCreateInfo.queueFamilyIndex = qfamily;
+      queueCreateInfo.queueCount = 1;
+      queueCreateInfo.pQueuePriorities = &queuePriority;
+      queueCreateInfos.push_back(queueCreateInfo);
+    }
 
     //
     VkPhysicalDeviceFeatures deviceFeature{};
@@ -480,8 +514,9 @@ private:
     createInfo.sType =
         VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 
-    createInfo.pQueueCreateInfos = &queueCreateInfo;
-    createInfo.queueCreateInfoCount = 1;
+    createInfo.queueCreateInfoCount =
+        static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
     createInfo.pEnabledFeatures = &deviceFeature;
     createInfo.enabledExtensionCount = 0;
@@ -504,6 +539,9 @@ private:
     vkGetDeviceQueue(l_device,
                      indices.graphics_family.value(), 0,
                      &graphics_queue);
+    vkGetDeviceQueue(l_device,
+                     indices.present_family.value(), 0,
+                     &present_queue);
   }
 };
 
