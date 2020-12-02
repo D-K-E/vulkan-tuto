@@ -3,7 +3,7 @@
 #include <external.hpp>
 
 #define CHECK_VK(call, msg)                                \
-  {                                                        \
+  do {                                                     \
     VkResult res = call;                                   \
     if (res != VK_SUCCESS) {                               \
       std::stringstream ss;                                \
@@ -12,4 +12,4 @@
       std::string s = ss.str();                            \
       throw std::runtime_error(s);                         \
     }                                                      \
-  }
+  } while (0)
