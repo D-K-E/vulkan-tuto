@@ -176,10 +176,23 @@ private:
   /**
     Create a Vulkan Instance
 
-    Create a vulkan instance with application
-    info. Application info contains regular
+    Creation has two steps:
+
+    - Optional step: Application info
+
+    - Required step: Instance info
+
+    Application info contains regular
     information with respect to vulkan application.
-    For example, name, version,
+    For example, name, version, whether it uses a
+    specific engine etc. The information mentioned
+    here can be used by the driver to optimize certain
+    aspects of the runtime with respect to parameters
+    entered here.
+
+    The second info, that of instance, is gives information
+    with respect to extensions, and validation layers
+    we would like to use for the application instance.
    */
   void createInstance() {
     //
@@ -258,7 +271,9 @@ private:
     }
     // 2. destroy surface
     vkDestroySurfaceKHR(instance, surface, nullptr);
-    // 3. destroy instance
+
+    // 3. destroy instance always last in
+    // a vulkan application.
     vkDestroyInstance(instance, nullptr);
 
     // 4. destroy window
@@ -272,12 +287,17 @@ private:
     Check if requested layers are available
 
     Validation layers come with sdk they are not supported
-    by Vulkan by default. We check if the requested layers
-    are found in the system. In order to do that we first
-    check the instance's layer properties. Requested layers
-    are in requested_validation_layers vector. We compare
-    the name of the available layers in the instance and
-    members of requested_validation_layers.
+    by Vulkan by
+    default. We check if the requested layers are found in
+    the system. In
+    order to do that we first check the instance's layer
+    properties with \c
+    vkEnumerateInstanceLayerProperties() \c function.
+    Requested layers are
+    in requested_validation_layers vector. We compare the
+    name of the
+    available layers in the instance and members of
+    requested_validation_layers.
    */
   bool checkValidationLayerSupport() {
     uint32_t layerCount;
