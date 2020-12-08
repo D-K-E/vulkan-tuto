@@ -125,6 +125,9 @@ public:
   /** swapchain extent*/
   VkExtent2D swapchain_extent;
 
+  /** swapchain image view */
+  std::vector<VkImageView> swapchain_image_views;
+
 public:
   HelloTriangle() {}
   HelloTriangle(std::string wTitle, const uint32_t &w,
@@ -196,6 +199,9 @@ private:
 
     // 5. create swap chain
     createSwapChain();
+
+    // 6. create swap chain image views
+    createSwapChainImageViews();
   }
 
   /**
@@ -287,27 +293,31 @@ private:
     Destroy window, and other ressources.
    */
   void cleanUp() {
-    // 1. destroy swap chain
+    // 1. destroy swap chain image views
+    for (auto imview : swapchain_image_views) {
+      vkDestroyImageView(l_device, imview, nullptr);
+    }
+    // 2. destroy swap chain
     vkDestroySwapchainKHR(l_device, swap_chain, nullptr);
 
-    // 2. destroy logical device
+    // 3. destroy logical device
     vkDestroyDevice(l_device, nullptr);
-    // 1. destroy debugging utils
+    // 4. destroy debugging utils
     if (enableValidationLayers) {
       DestroyDebugUtilsMessengerEXT(
           instance, debugMessenger, nullptr);
     }
-    // 2. destroy surface
+    // 5. destroy surface
     vkDestroySurfaceKHR(instance, surface, nullptr);
 
-    // 3. destroy instance always last in
+    // 6. destroy instance always last in
     // a vulkan application.
     vkDestroyInstance(instance, nullptr);
 
-    // 4. destroy window
+    // 7. destroy window
     glfwDestroyWindow(window);
 
-    // 5. glfw terminate
+    // 8. glfw terminate
     glfwTerminate();
   }
 
@@ -751,7 +761,6 @@ number of indices for given device family.
     }
     return requested_extensions.empty();
   }
-
   void createLogicalDevice() {
     //
     QueuFamilyIndices indices =
@@ -812,6 +821,42 @@ number of indices for given device family.
     vkGetDeviceQueue(l_device,
                      indices.present_family.value(), 0,
                      &present_queue);
+  }
+  void createSwapChainImageViews() {
+    swapchain_image_views.resize(swapchain_images.size());
+    for (std::size_t i = 0; i < swapchain_images.size();
+         i++) {
+      //
+      VkImageViewCreateInfo createInfo{};
+      createInfo.sType =
+          VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+      createInfo.image = swapchain_images[i];
+      /** view type can be 1d texture, 2d texture, 3d
+       * textures and cubemaps*/
+      createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      createInfo.format = swapchain_image_format;
+
+      /** vec.xx == vec2(vec.x, vec.x) */
+      createInfo.components.r =
+          VK_COMPONENT_SWIZZLE_IDENTITY;
+      createInfo.components.g =
+          VK_COMPONENT_SWIZZLE_IDENTITY;
+      createInfo.components.b =
+          VK_COMPONENT_SWIZZLE_IDENTITY;
+      createInfo.components.a =
+          VK_COMPONENT_SWIZZLE_IDENTITY;
+
+      createInfo.subresourceRange.aspectMask =
+          VK_IMAGE_ASPECT_COLOR_BIT;
+      createInfo.subresourceRange.baseMipLevel = 0;
+      createInfo.subresourceRange.levelCount = 1;
+      createInfo.subresourceRange.baseArrayLayer = 0;
+      createInfo.subresourceRange.layerCount = 1;
+      CHECK_VK(vkCreateImageView(l_device, &createInfo,
+                                 nullptr,
+                                 &swapchain_image_views[i]),
+               "failed to create image view");
+    }
   }
 };
 
