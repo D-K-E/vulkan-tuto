@@ -202,6 +202,8 @@ private:
 
     // 6. create swap chain image views
     createSwapChainImageViews();
+
+    // 7. create graphics pipeline
   }
 
   /**
@@ -857,6 +859,54 @@ number of indices for given device family.
                                  &swapchain_image_views[i]),
                "failed to create image view");
     }
+  }
+  VkShaderModule
+  createShaderModule(const std::vector<char> &shaderCode) {
+    //
+    VkShaderModuleCreateInfo createInfo{};
+    createInfo.sType =
+        VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.codeSize = shaderCode.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t *>(
+        shaderCode.data());
+
+    VkShaderModule shaderModule;
+    CHECK_VK(vkCreateShaderModule(l_device, &createInfo,
+                                  nullptr, &shaderModule),
+             "failed to create shader module");
+    return shaderModule;
+  }
+
+  void createGraphicsPipeline() {
+    auto vxShaderCode = read_shader_file(
+        "./shaders/vulkansimple/vulkansimple.vert.spv");
+    auto fragShaderCode = read_shader_file(
+        "./shaders/vulkansimple/vulkansimple.frag.spv");
+
+    auto vertexModule = createShaderModule(vxShaderCode);
+    auto fragModule = createShaderModule(fragShaderCode);
+    //
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+    vertShaderStageInfo.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertShaderStageInfo.module = vertexModule;
+    vertShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+    vertShaderStageInfo.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage =
+        VK_SHADER_STAGE_FRAGMENT_BIT;
+    vertShaderStageInfo.module = fragModule;
+    vertShaderStageInfo.pName = "main";
+
+    //
+    VkPipelineShaderStageCreateInfo stages[] = {
+        vertShaderStageInfo, fragShaderStageInfo};
+
+    vkDestroyShaderModule(l_device, fragModule, nullptr);
+    vkDestroyShaderModule(l_device, vertexModule, nullptr);
   }
 };
 
