@@ -76,8 +76,11 @@ public:
   /** swapchain image view */
   std::vector<VkImageView> swapchain_image_views;
 
+  /** render pass */
+  VkRenderPass render_pass;
+
   /** graphics pipeline layout*/
-  VkPipelineLayout pipelineLayout;
+  VkPipelineLayout pipeline_layout;
 
 public:
   HelloTriangle() {}
@@ -154,7 +157,10 @@ private:
     // 6. create swap chain image views
     createSwapChainImageViews();
 
-    // 7. create graphics pipeline
+    // 7. create render pass
+    createRenderPass();
+
+    // 8. create graphics pipeline
     createGraphicsPipeline();
   }
 
@@ -248,8 +254,10 @@ private:
    */
   void cleanUp() {
     // 1. destroy pipeline layout
-    vkDestroyPipelineLayout(l_device, pipelineLayout,
+    vkDestroyPipelineLayout(l_device, pipeline_layout,
                             nullptr);
+    // 2. destroy rendering pass
+    vkDestroyRenderPass(l_device, render_pass, nullptr);
     // 2. destroy swap chain image views
     for (auto imview : swapchain_image_views) {
       vkDestroyImageView(l_device, imview, nullptr);
@@ -355,6 +363,50 @@ private:
     CHECK_VK(glfwCreateWindowSurface(instance, window,
                                      nullptr, &surface),
              "failed to create window surface");
+  }
+
+  void createRenderPass() {
+    //
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = swapchain_image_format;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp =
+        VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp =
+        VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout =
+        VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout =
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    // reference object to attachment
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout =
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    // subpass description
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint =
+        VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    // render pass create info
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType =
+        VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+
+    //
+    CHECK_VK(vkCreateRenderPass(l_device, &renderPassInfo,
+                                nullptr, &render_pass),
+             "failed to create render pass");
   }
 
   /**
@@ -950,7 +1002,7 @@ number of indices for given device family.
 
     CHECK_VK(vkCreatePipelineLayout(
                  l_device, &pipelineLayoutInfo, nullptr,
-                 &pipelineLayout),
+                 &pipeline_layout),
              "failed to create pipeline layout");
 
     vkDestroyShaderModule(l_device, fragModule, nullptr);
