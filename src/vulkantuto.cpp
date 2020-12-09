@@ -1,4 +1,5 @@
 // main file
+#include <debug.hpp>
 #include <external.hpp>
 #include <utils.hpp>
 //
@@ -7,61 +8,8 @@ namespace vtuto {
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-/**
-  standard validation functions are defined in
-  VK_LAYER_KHRONOS_validation by
-  the lunar sdk
- */
-std::vector<const char *> requested_validation_layers = {
-    "VK_LAYER_KHRONOS_validation"};
-
 std::vector<const char *> device_extensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-
-/**
-  Enable validation layers for debug build. NDEBUG macro is
-  a part of c++ standard.
- */
-
-#ifdef NDEBUG
-const bool enableValidationLayers = false;
-#else
-const bool enableValidationLayers = true;
-#endif
-
-/**
-  Create debug messenger.
-
- */
-VkResult CreateDebugUtilsMessengerExt(
-    VkInstance instance,
-    const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-    const VkAllocationCallbacks *pAllocator,
-    VkDebugUtilsMessengerEXT *pDebugMessenger) {
-  //
-  auto func = (PFN_vkCreateDebugUtilsMessengerEXT)
-      vkGetInstanceProcAddr(
-          instance, "vkCreateDebugUtilsMessengerEXT");
-  if (func != nullptr) {
-    return func(instance, pCreateInfo, pAllocator,
-                pDebugMessenger);
-  } else {
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-  }
-}
-
-void DestroyDebugUtilsMessengerEXT(
-    VkInstance instance,
-    VkDebugUtilsMessengerEXT debugMessenger,
-    const VkAllocationCallbacks *pAllocator) {
-  //
-  auto fn = (PFN_vkDestroyDebugUtilsMessengerEXT)
-      vkGetInstanceProcAddr(
-          instance, "vkDestroyDebugUtilsMessengerEXT");
-  if (fn != nullptr) {
-    fn(instance, debugMessenger, pAllocator);
-  }
-}
 
 struct QueuFamilyIndices {
   //
@@ -127,6 +75,9 @@ public:
 
   /** swapchain image view */
   std::vector<VkImageView> swapchain_image_views;
+
+  /** graphics pipeline layout*/
+  VkPipelineLayout pipelineLayout;
 
 public:
   HelloTriangle() {}
@@ -204,6 +155,7 @@ private:
     createSwapChainImageViews();
 
     // 7. create graphics pipeline
+    createGraphicsPipeline();
   }
 
   /**
@@ -295,31 +247,34 @@ private:
     Destroy window, and other ressources.
    */
   void cleanUp() {
-    // 1. destroy swap chain image views
+    // 1. destroy pipeline layout
+    vkDestroyPipelineLayout(l_device, pipelineLayout,
+                            nullptr);
+    // 2. destroy swap chain image views
     for (auto imview : swapchain_image_views) {
       vkDestroyImageView(l_device, imview, nullptr);
     }
-    // 2. destroy swap chain
+    // 3. destroy swap chain
     vkDestroySwapchainKHR(l_device, swap_chain, nullptr);
 
-    // 3. destroy logical device
+    // 4. destroy logical device
     vkDestroyDevice(l_device, nullptr);
-    // 4. destroy debugging utils
+    // 5. destroy debugging utils
     if (enableValidationLayers) {
       DestroyDebugUtilsMessengerEXT(
           instance, debugMessenger, nullptr);
     }
-    // 5. destroy surface
+    // 6. destroy surface
     vkDestroySurfaceKHR(instance, surface, nullptr);
 
-    // 6. destroy instance always last in
+    // 7. destroy instance always last in
     // a vulkan application.
     vkDestroyInstance(instance, nullptr);
 
-    // 7. destroy window
+    // 8. destroy window
     glfwDestroyWindow(window);
 
-    // 8. glfw terminate
+    // 9. glfw terminate
     glfwTerminate();
   }
 
@@ -904,6 +859,99 @@ number of indices for given device family.
     //
     VkPipelineShaderStageCreateInfo stages[] = {
         vertShaderStageInfo, fragShaderStageInfo};
+
+    // vertex input pipeline creation
+    VkPipelineVertexInputStateCreateInfo vxInputInfo{};
+    vxInputInfo.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vxInputInfo.vertexBindingDescriptionCount = 0;
+    vxInputInfo.vertexAttributeDescriptionCount = 0;
+
+    // input assembly pipeline creation
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology =
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    // viewport configuration
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)swapchain_extent.width;
+    viewport.height = (float)swapchain_extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    // scissoring area configuration
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = swapchain_extent;
+
+    // viewport state change configuration
+    VkPipelineViewportStateCreateInfo viewportState{};
+    viewportState.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
+    // rasterization state configuration
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.depthBiasEnable = VK_FALSE;
+
+    // multisample state configuration
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples =
+        VK_SAMPLE_COUNT_1_BIT;
+
+    // color blend attachement state configuration
+    VkPipelineColorBlendAttachmentState
+        colorBlendAttachment{};
+    colorBlendAttachment.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT |
+        VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+
+    //
+    // color blend state configuration
+    VkPipelineColorBlendStateCreateInfo colorBlend{};
+    colorBlend.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlend.logicOpEnable = VK_FALSE;
+    colorBlend.logicOp = VK_LOGIC_OP_COPY;
+    colorBlend.attachmentCount = 1;
+    colorBlend.pAttachments = &colorBlendAttachment;
+    colorBlend.blendConstants[0] = 0.0f;
+    colorBlend.blendConstants[1] = 0.0f;
+    colorBlend.blendConstants[2] = 0.0f;
+    colorBlend.blendConstants[3] = 0.0f;
+
+    // pipeline layout create info configuration
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 0;
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+
+    CHECK_VK(vkCreatePipelineLayout(
+                 l_device, &pipelineLayoutInfo, nullptr,
+                 &pipelineLayout),
+             "failed to create pipeline layout");
 
     vkDestroyShaderModule(l_device, fragModule, nullptr);
     vkDestroyShaderModule(l_device, vertexModule, nullptr);
