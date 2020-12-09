@@ -82,6 +82,9 @@ public:
   /** graphics pipeline layout*/
   VkPipelineLayout pipeline_layout;
 
+  /** graphics pipeline object*/
+  VkPipeline graphics_pipeline;
+
 public:
   HelloTriangle() {}
   HelloTriangle(std::string wTitle, const uint32_t &w,
@@ -253,6 +256,7 @@ private:
     Destroy window, and other ressources.
    */
   void cleanUp() {
+    vkDestroyPipeline(l_device, graphics_pipeline, nullptr);
     // 1. destroy pipeline layout
     vkDestroyPipelineLayout(l_device, pipeline_layout,
                             nullptr);
@@ -901,12 +905,12 @@ number of indices for given device family.
     vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-    vertShaderStageInfo.sType =
+    fragShaderStageInfo.sType =
         VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage =
+    fragShaderStageInfo.stage =
         VK_SHADER_STAGE_FRAGMENT_BIT;
-    vertShaderStageInfo.module = fragModule;
-    vertShaderStageInfo.pName = "main";
+    fragShaderStageInfo.module = fragModule;
+    fragShaderStageInfo.pName = "main";
 
     //
     VkPipelineShaderStageCreateInfo stages[] = {
@@ -1004,6 +1008,28 @@ number of indices for given device family.
                  l_device, &pipelineLayoutInfo, nullptr,
                  &pipeline_layout),
              "failed to create pipeline layout");
+
+    // create pipeline object
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType =
+        VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = stages;
+    pipelineInfo.pVertexInputState = &vxInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pColorBlendState = &colorBlend;
+    pipelineInfo.layout = pipeline_layout;
+    pipelineInfo.renderPass = render_pass;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+    CHECK_VK(vkCreateGraphicsPipelines(
+                 l_device, VK_NULL_HANDLE, 1, &pipelineInfo,
+                 nullptr, &graphics_pipeline),
+             "failed to create graphics pipeline");
 
     vkDestroyShaderModule(l_device, fragModule, nullptr);
     vkDestroyShaderModule(l_device, vertexModule, nullptr);
