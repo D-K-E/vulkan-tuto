@@ -10,7 +10,6 @@ const uint32_t HEIGHT = 600;
 
 std::vector<const char *> device_extensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-
 struct QueuFamilyIndices {
   //
   std::optional<uint32_t> graphics_family;
@@ -20,13 +19,11 @@ struct QueuFamilyIndices {
            present_family.has_value();
   }
 };
-
 struct SwapChainSupportDetails {
   VkSurfaceCapabilitiesKHR capabilities;
   std::vector<VkSurfaceFormatKHR> formats;
   std::vector<VkPresentModeKHR> present_modes;
 };
-
 /**
   @brief Hello Triangle application object.
 
@@ -76,6 +73,9 @@ public:
   /** swapchain image view */
   std::vector<VkImageView> swapchain_image_views;
 
+  /** swap chain frame buffers*/
+  std::vector<VkFramebuffer> swapchain_framebuffers;
+
   /** render pass */
   VkRenderPass render_pass;
 
@@ -84,6 +84,22 @@ public:
 
   /** graphics pipeline object*/
   VkPipeline graphics_pipeline;
+
+  /** command pool for command buffer*/
+  VkCommandPool command_pool;
+  std::vector<VkCommandBuffer> command_buffers;
+
+  /** vk semaphore to hold available and rendered images */
+  std::vector<VkSemaphore> image_available_semaphores;
+  std::vector<VkSemaphore> render_finished_semaphores;
+
+  /** fence image for drawing */
+  std::vector<VkFence> current_fences;
+  std::vector<VkFence> images_in_flight;
+  std::size_t current_frame = 0;
+
+  /** maximum frames in flight*/
+  const int MAX_FRAMES_IN_FLIGHT = 2;
 
 public:
   HelloTriangle() {}
@@ -130,7 +146,6 @@ private:
                               win_title.c_str(), nullptr,
                               nullptr);
   }
-
   /**
     Initialize vulkan.
 
@@ -165,8 +180,19 @@ private:
 
     // 8. create graphics pipeline
     createGraphicsPipeline();
-  }
 
+    // 9. create framebuffers
+    createFramebuffers();
+
+    // 10. create command pool
+    createCommandPool();
+
+    // 11. create command buffer
+    createCommandBuffer();
+
+    // 12. create sync objects: semaphores, fences etc
+    createSyncObjects();
+  }
   /**
     Create a Vulkan Instance
 
@@ -189,7 +215,6 @@ private:
     we would like to use for the application instance.
    */
   void createInstance() {
-    //
     // 1. Create Application info struct
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -237,7 +262,6 @@ private:
         vkCreateInstance(&createInfo, nullptr, &instance),
         "Failed to create Vulkan instance");
   }
-
   /**
     Rendering loop.
 
@@ -247,15 +271,30 @@ private:
     //
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
+      draw();
     }
+    vkDeviceWaitIdle(l_device);
   }
-
   /**
     Clean up ressources.
 
     Destroy window, and other ressources.
    */
   void cleanUp() {
+    //
+    for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+      vkDestroySemaphore(
+          l_device, render_finished_semaphores[i], nullptr);
+      vkDestroySemaphore(
+          l_device, image_available_semaphores[i], nullptr);
+      vkDestroyFence(l_device, current_fences[i], nullptr);
+    }
+    vkDestroyCommandPool(l_device, command_pool, nullptr);
+    //
+    for (auto framebuffer : swapchain_framebuffers) {
+      //
+      vkDestroyFramebuffer(l_device, framebuffer, nullptr);
+    }
     vkDestroyPipeline(l_device, graphics_pipeline, nullptr);
     // 1. destroy pipeline layout
     vkDestroyPipelineLayout(l_device, pipeline_layout,
@@ -289,7 +328,6 @@ private:
     // 9. glfw terminate
     glfwTerminate();
   }
-
   /**
     Check if requested layers are available
 
@@ -338,7 +376,6 @@ private:
     //
     return true;
   }
-
   /**
     Specify properties of the debug messenger callback
 
@@ -432,7 +469,6 @@ private:
               << pCallbackData->pMessage << std::endl;
     return VK_FALSE;
   }
-
   /**
     Set @see debugMessenger up by populating its related
     info.
@@ -449,8 +485,6 @@ private:
                  &debugMessenger),
              "failed to create and setup debug messenger");
   }
-
-  //
   std::vector<const char *> getRequiredExtensions() {
     uint32_t glfwExtensionCount = 0;
     const char **glfwExtensions;
@@ -468,7 +502,6 @@ private:
     }
     return extensions;
   }
-
   /**
 Find device family indices for given VkPhysicalDevice
 
@@ -513,7 +546,6 @@ number of indices for given device family.
     }
     return indices;
   }
-
   void pickPhysicalDevice() {
     //
     uint32_t device_count = 0;
@@ -604,7 +636,6 @@ number of indices for given device family.
       return actual_extent;
     }
   }
-
   void createSwapChain() {
     SwapChainSupportDetails swap_details =
         querySwapChainSupport(physical_dev);
@@ -684,7 +715,6 @@ number of indices for given device family.
     swapchain_image_format = surfaceFormat.format;
     swapchain_extent = extent;
   }
-
   /**
     Query supported swap chain details.
 
@@ -746,7 +776,6 @@ number of indices for given device family.
     return indices.is_complete() &&
            areExtensionsSupported && isSwapChainPossible;
   }
-
   /**
     Check if device support requested extensions.
 
@@ -887,7 +916,6 @@ number of indices for given device family.
              "failed to create shader module");
     return shaderModule;
   }
-
   void createGraphicsPipeline() {
     auto vxShaderCode = read_shader_file(
         "./shaders/vulkansimple/vulkansimple.vert.spv");
@@ -1034,8 +1062,197 @@ number of indices for given device family.
     vkDestroyShaderModule(l_device, fragModule, nullptr);
     vkDestroyShaderModule(l_device, vertexModule, nullptr);
   }
-};
+  void createFramebuffers() {
+    swapchain_framebuffers.resize(
+        swapchain_image_views.size());
+    for (std::size_t i = 0;
+         i < swapchain_image_views.size(); i++) {
+      // vk image view per frame
+      VkImageView image_attachments[] = {
+          swapchain_image_views[i]};
+      VkFramebufferCreateInfo framebufferInfo{};
+      framebufferInfo.sType =
+          VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+      framebufferInfo.renderPass = render_pass;
+      framebufferInfo.attachmentCount = 1;
+      framebufferInfo.pAttachments = image_attachments;
+      framebufferInfo.width = swapchain_extent.width;
+      framebufferInfo.height = swapchain_extent.height;
+      framebufferInfo.layers = 1;
+      //
+      CHECK_VK(
+          vkCreateFramebuffer(l_device, &framebufferInfo,
+                              nullptr,
+                              &swapchain_framebuffers[i]),
+          "failed to create framebuffer for image view: " +
+              std::to_string(i));
+    }
+  }
+  void createCommandPool() {
+    QueuFamilyIndices qfi =
+        find_family_indices(physical_dev);
 
+    VkCommandPoolCreateInfo commandPoolInfo{};
+    commandPoolInfo.sType =
+        VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolInfo.queueFamilyIndex =
+        qfi.graphics_family.value();
+    CHECK_VK(vkCreateCommandPool(l_device, &commandPoolInfo,
+                                 nullptr, &command_pool),
+             "failed to create command pool");
+  }
+  void createCommandBuffer() {
+    command_buffers.resize(swapchain_framebuffers.size());
+
+    //
+    VkCommandBufferAllocateInfo comAllocInfo{};
+    comAllocInfo.sType =
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    comAllocInfo.commandPool = command_pool;
+    comAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    comAllocInfo.commandBufferCount =
+        static_cast<uint32_t>(command_buffers.size());
+    //
+    CHECK_VK(
+        vkAllocateCommandBuffers(l_device, &comAllocInfo,
+                                 command_buffers.data()),
+        "failed allocate for registering command buffers");
+
+    //
+    for (std::size_t i = 0; i < command_buffers.size();
+         i++) {
+      //
+      VkCommandBufferBeginInfo beginInfo{};
+      beginInfo.sType =
+          VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+      CHECK_VK(vkBeginCommandBuffer(command_buffers[i],
+                                    &beginInfo),
+               "failed to begin recording commands");
+
+      VkRenderPassBeginInfo renderPassInfo{};
+      renderPassInfo.sType =
+          VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+      renderPassInfo.renderPass = render_pass;
+      renderPassInfo.framebuffer =
+          swapchain_framebuffers[i];
+      renderPassInfo.renderArea.offset = {0, 0};
+      renderPassInfo.renderArea.extent = swapchain_extent;
+
+      //
+      VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+      renderPassInfo.clearValueCount = 1;
+      renderPassInfo.pClearValues = &clearColor;
+
+      //
+      vkCmdBeginRenderPass(command_buffers[i],
+                           &renderPassInfo,
+                           VK_SUBPASS_CONTENTS_INLINE);
+      vkCmdBindPipeline(command_buffers[i],
+                        VK_PIPELINE_BIND_POINT_GRAPHICS,
+                        graphics_pipeline);
+      vkCmdDraw(command_buffers[i], 3, 1, 0, 0);
+      vkCmdEndRenderPass(command_buffers[i]);
+      CHECK_VK(vkEndCommandBuffer(command_buffers[i]),
+               "failed to register command buffer");
+    }
+  }
+  void createSyncObjects() {
+    image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    current_fences.resize(MAX_FRAMES_IN_FLIGHT);
+    images_in_flight.resize(swapchain_images.size(),
+                            VK_NULL_HANDLE);
+
+    // create semaphore info
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType =
+        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    // create fences
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+      CHECK_VK(
+          vkCreateSemaphore(l_device, &semaphoreInfo,
+                            nullptr,
+                            &image_available_semaphores[i]),
+          "Failed to create image available semaphore");
+      CHECK_VK(
+          vkCreateSemaphore(l_device, &semaphoreInfo,
+                            nullptr,
+                            &render_finished_semaphores[i]),
+          "Failed to create render finished semaphore");
+
+      CHECK_VK(vkCreateFence(l_device, &fenceInfo, nullptr,
+                             &current_fences[i]),
+               "Failed to in flight fence");
+    }
+  }
+  void draw() {
+    vkWaitForFences(l_device, 1,
+                    &current_fences[current_frame], VK_TRUE,
+                    UINT64_MAX);
+
+    uint32_t image_index;
+    vkAcquireNextImageKHR(
+        l_device, swap_chain, UINT64_MAX,
+        image_available_semaphores[current_frame],
+        VK_NULL_HANDLE, &image_index);
+
+    if (images_in_flight[image_index] != VK_NULL_HANDLE) {
+      vkWaitForFences(l_device, 1,
+                      &images_in_flight[image_index],
+                      VK_TRUE, UINT64_MAX);
+    }
+    images_in_flight[image_index] =
+        current_fences[current_frame];
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = {
+        image_available_semaphores[current_frame]};
+    VkPipelineStageFlags waitStages[] = {
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers =
+        &command_buffers[image_index];
+
+    VkSemaphore signalSemaphores[] = {
+        render_finished_semaphores[current_frame]};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    vkResetFences(l_device, 1,
+                  &current_fences[current_frame]);
+    //
+    CHECK_VK(vkQueueSubmit(graphics_queue, 1, &submitInfo,
+                           current_fences[current_frame]),
+             "failed to submit draw command buffer");
+    //
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+
+    VkSwapchainKHR swap_chains[] = {swap_chain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swap_chains;
+    presentInfo.pImageIndices = &image_index;
+
+    vkQueuePresentKHR(present_queue, &presentInfo);
+
+    //
+    current_frame =
+        (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+  }
+};
 extern "C" int main() {
   std::string wtitle = "Vulkan Window Title";
   HelloTriangle hello(wtitle, (uint32_t)640, (uint32_t)480);
