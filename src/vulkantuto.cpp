@@ -2,14 +2,13 @@
 #include <debug.hpp>
 #include <external.hpp>
 #include <hellotriangle.hpp>
+#include <pdevice.hpp>
+#include <support.hpp>
 #include <utils.hpp>
 //
 using namespace vtuto;
 
 namespace vtuto {
-
-std::vector<const char *> device_extensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 /**
   @brief Hello Triangle application object.
@@ -391,42 +390,6 @@ family properties. We break away if the device has
 complete
 number of indices for given device family.
 */
-QueuFamilyIndices
-HelloTriangle::find_family_indices(VkPhysicalDevice pdev) {
-  //
-  QueuFamilyIndices indices;
-  uint32_t familyCount = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(
-      pdev, &familyCount, nullptr);
-  //
-  std::vector<VkQueueFamilyProperties> queueFamilies(
-      familyCount);
-
-  vkGetPhysicalDeviceQueueFamilyProperties(
-      pdev, &familyCount, queueFamilies.data());
-
-  uint32_t i = 0;
-  for (const auto &qfamily : queueFamilies) {
-    //
-    if (qfamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      indices.graphics_family = i;
-    }
-
-    VkBool32 present_support = false;
-    vkGetPhysicalDeviceSurfaceSupportKHR(pdev, i, surface,
-                                         &present_support);
-
-    if (present_support) {
-      indices.present_family = i;
-    }
-
-    if (indices.is_complete()) {
-      break;
-    }
-    i++;
-  }
-  return indices;
-}
 void HelloTriangle::pickPhysicalDevice() {
   //
   uint32_t device_count = 0;
@@ -554,7 +517,8 @@ void HelloTriangle::createSwapChain() {
       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
   QueuFamilyIndices indices =
-      find_family_indices(physical_dev);
+      QueuFamilyIndices::find_family_indices(physical_dev,
+                                             surface);
   uint32_t qfamily_indices[] = {
       indices.graphics_family.value(),
       indices.present_family.value()};
@@ -607,7 +571,8 @@ void HelloTriangle::createSwapChain() {
   chain management.
  */
 SwapChainSupportDetails
-HelloTriangle::querySwapChainSupport(VkPhysicalDevice pdev) {
+HelloTriangle::querySwapChainSupport(
+    VkPhysicalDevice pdev) {
   SwapChainSupportDetails details;
 
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
@@ -641,7 +606,8 @@ HelloTriangle::querySwapChainSupport(VkPhysicalDevice pdev) {
  */
 bool HelloTriangle::is_device_suitable(
     VkPhysicalDevice pdev) {
-  QueuFamilyIndices indices = find_family_indices(pdev);
+  QueuFamilyIndices indices =
+      QueuFamilyIndices::find_family_indices(pdev, surface);
   bool areExtensionsSupported =
       checkDeviceExtensionSupport(pdev);
 
@@ -687,7 +653,8 @@ bool HelloTriangle::checkDeviceExtensionSupport(
 void HelloTriangle::createLogicalDevice() {
   //
   QueuFamilyIndices indices =
-      find_family_indices(physical_dev);
+      QueuFamilyIndices::find_family_indices(physical_dev,
+                                             surface);
 
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
   std::set<uint32_t> uniqueQueueFamilies = {
@@ -963,7 +930,9 @@ void HelloTriangle::createFramebuffers() {
   }
 }
 void HelloTriangle::createCommandPool() {
-  QueuFamilyIndices qfi = find_family_indices(physical_dev);
+  QueuFamilyIndices qfi =
+      QueuFamilyIndices::find_family_indices(physical_dev,
+                                             surface);
 
   VkCommandPoolCreateInfo commandPoolInfo{};
   commandPoolInfo.sType =
