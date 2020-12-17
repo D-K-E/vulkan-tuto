@@ -2,26 +2,13 @@
 #include <debug.hpp>
 #include <external.hpp>
 #include <utils.hpp>
+#include <support.hpp>
 
 namespace vtuto {
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-struct QueuFamilyIndices {
-  //
-  std::optional<uint32_t> graphics_family;
-  std::optional<uint32_t> present_family;
-  bool is_complete() {
-    return graphics_family.has_value() &&
-           present_family.has_value();
-  }
-};
-struct SwapChainSupportDetails {
-  VkSurfaceCapabilitiesKHR capabilities;
-  std::vector<VkSurfaceFormatKHR> formats;
-  std::vector<VkPresentModeKHR> present_modes;
-};
 class HelloTriangle {
 public:
   std::string win_title = "Vulkan Window";
