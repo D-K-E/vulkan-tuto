@@ -3,13 +3,60 @@
 
 namespace vtuto {
 //
+std::vector<const char *> device_extensions = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
 struct QueuFamilyIndices {
-  //
   std::optional<uint32_t> graphics_family;
   std::optional<uint32_t> present_family;
   bool is_complete() {
     return graphics_family.has_value() &&
            present_family.has_value();
+  }
+  /**
+  Find device family indices for given VkPhysicalDevice
+
+  We query the given physical device for physical device
+  family properties. We break away if the device has
+  complete
+  number of indices for given device family.
+  */
+
+  static QueuFamilyIndices
+  find_family_indices(VkPhysicalDevice pdev,
+                      VkSurfaceKHR surface) {
+    QueuFamilyIndices indices;
+    uint32_t familyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        pdev, &familyCount, nullptr);
+    //
+    std::vector<VkQueueFamilyProperties> queueFamilies(
+        familyCount);
+
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        pdev, &familyCount, queueFamilies.data());
+
+    uint32_t i = 0;
+    for (const auto &qfamily : queueFamilies) {
+      //
+      if (qfamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        indices.graphics_family = i;
+      }
+
+      VkBool32 present_support = false;
+      vkGetPhysicalDeviceSurfaceSupportKHR(
+          pdev, i, surface, &present_support);
+
+      if (present_support) {
+        indices.present_family = i;
+      }
+
+      if (indices.is_complete()) {
+        break;
+      }
+      i++;
+    }
+    return indices;
   }
 };
 struct SwapChainSupportDetails {
