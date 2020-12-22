@@ -63,6 +63,20 @@ struct SwapChainSupportDetails {
   VkSurfaceCapabilitiesKHR capabilities;
   std::vector<VkSurfaceFormatKHR> formats;
   std::vector<VkPresentModeKHR> present_modes;
+
+  /**
+    Query supported swap chain details.
+
+    \c vkGetPhysicalDeviceSurfaceFormatsKHR() \c for
+    querying supported
+    color formats (unorm, srgb, etc)
+
+    \c vkGetPhysicalDeviceSurfacePresentModesKHR \c for
+    querying supported
+    data structures for presentation to be used in swap
+    chain management.
+   */
+
   static SwapChainSupportDetails
   querySwapChainSupport(VkPhysicalDevice pdev,
                         VkSurfaceKHR surface) {

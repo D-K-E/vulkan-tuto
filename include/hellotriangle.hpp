@@ -1,6 +1,7 @@
 #pragma once
 #include <debug.hpp>
 #include <external.hpp>
+#include <ldevice.hpp>
 #include <pdevice.hpp>
 #include <support.hpp>
 #include <utils.hpp>
@@ -30,16 +31,20 @@ public:
   /** physical device handler*/
   // VkPhysicalDevice physical_dev = VK_NULL_HANDLE;
 
-  physical_device *physical_dev;
+  /** physical device pointer*/
+  physical_device physical_dev;
+
+  /** logical device pointer */
+  logical_device l_device;
 
   /** logical device handler */
-  VkDevice l_device;
+  // VkDevice l_device;
 
   /** graphics queue */
-  VkQueue graphics_queue;
+  // VkQueue graphics_queue;
 
   /** window surface queue*/
-  VkQueue present_queue;
+  // VkQueue present_queue;
 
   /** swapchain for handling frame rate*/
   VkSwapchainKHR swap_chain;
@@ -97,9 +102,6 @@ public:
 
     Steps to run the application
    */
-  ~HelloTriangle(){
-      delete physical_dev;
-  }
   void run();
 
 private:

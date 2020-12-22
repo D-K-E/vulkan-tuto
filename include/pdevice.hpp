@@ -2,6 +2,7 @@
 /**\brief Physical Device Object*/
 
 #include <debug.hpp>
+#include <device.hpp>
 #include <external.hpp>
 #include <support.hpp>
 #include <utils.hpp>
@@ -18,6 +19,15 @@ public:
 
 public:
   physical_device() : instance_ptr(nullptr) {}
+  /**
+  Find device family indices for given VkPhysicalDevice
+
+  We query the given physical device for physical device
+  family properties. We break away if the device has
+  complete
+  number of indices for given device family.
+  */
+
   physical_device(VkInstance *ins, GLFWwindow *window)
       : instance_ptr(ins) {
     // 1. create surface
@@ -53,6 +63,11 @@ public:
   void destroy() {
     vkDestroySurfaceKHR(instance(), surface, nullptr);
   }
+  /**
+    Check if the device is suitable for implementing a swap
+    chain
+   */
+
   bool is_device_suitable(VkPhysicalDevice pdev) {
     QueuFamilyIndices indices =
         QueuFamilyIndices::find_family_indices(pdev,

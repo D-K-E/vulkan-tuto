@@ -2,6 +2,7 @@
 #include <debug.hpp>
 #include <external.hpp>
 #include <hellotriangle.hpp>
+#include <ldevice.hpp>
 #include <pdevice.hpp>
 #include <support.hpp>
 #include <utils.hpp>
@@ -72,15 +73,13 @@ void HelloTriangle::initVulkan() {
   // 2. Setup debug messenger
   setupDebugMessenger();
 
-  // 3. Create surface
-  // createSurface();
-
-  // 3. Pick physical device
-  // pickPhysicalDevice();
-  physical_dev = new physical_device(&instance, window);
+  // 3. Create physical device
+  physical_dev = physical_device(&instance, window);
 
   // 4. Create logical device
-  createLogicalDevice();
+  // createLogicalDevice();
+  l_device =
+      logical_device(enableValidationLayers, physical_dev);
 
   // 5. create swap chain
   createSwapChain();
@@ -185,7 +184,7 @@ void HelloTriangle::renderLoop() {
     glfwPollEvents();
     draw();
   }
-  vkDeviceWaitIdle(l_device);
+  vkDeviceWaitIdle(l_device.ldevice);
 }
 /**
   Clean up ressources.
@@ -196,22 +195,27 @@ void HelloTriangle::cleanUp() {
   //
   cleanupSwapchain();
   for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    vkDestroySemaphore(
-        l_device, render_finished_semaphores[i], nullptr);
-    vkDestroySemaphore(
-        l_device, image_available_semaphores[i], nullptr);
-    vkDestroyFence(l_device, current_fences[i], nullptr);
+    vkDestroySemaphore(l_device.ldevice,
+                       render_finished_semaphores[i],
+                       nullptr);
+    vkDestroySemaphore(l_device.ldevice,
+                       image_available_semaphores[i],
+                       nullptr);
+    vkDestroyFence(l_device.ldevice, current_fences[i],
+                   nullptr);
   }
-  vkDestroyCommandPool(l_device, command_pool, nullptr);
+  vkDestroyCommandPool(l_device.ldevice, command_pool,
+                       nullptr);
   // 4. destroy logical device
-  vkDestroyDevice(l_device, nullptr);
+  // vkDestroyDevice(l_device.ldevice, nullptr);
+  l_device.destroy();
   // 5. destroy debugging utils
   if (enableValidationLayers) {
     DestroyDebugUtilsMessengerEXT(instance, debugMessenger,
                                   nullptr);
   }
   // 6. destroy surface
-  physical_dev->destroy();
+  physical_dev.destroy();
 
   // 7. destroy instance always last in
   // a vulkan application.
@@ -294,11 +298,6 @@ void HelloTriangle::populateDebugMessengerCreateInfo(
   //
   createInfo.pfnUserCallback = debugCallback;
 }
-// void HelloTriangle::createSurface() {
-// CHECK_VK(glfwCreateWindowSurface(instance, window,
-//                                 nullptr, &surface),
-//         "failed to create window surface");
-//}
 
 void HelloTriangle::createRenderPass() {
   //
@@ -338,8 +337,9 @@ void HelloTriangle::createRenderPass() {
   renderPassInfo.pSubpasses = &subpass;
 
   //
-  CHECK_VK(vkCreateRenderPass(l_device, &renderPassInfo,
-                              nullptr, &render_pass),
+  CHECK_VK(vkCreateRenderPass(l_device.ldevice,
+                              &renderPassInfo, nullptr,
+                              &render_pass),
            "failed to create render pass");
 }
 
@@ -383,44 +383,6 @@ HelloTriangle::getRequiredExtensions() {
   }
   return extensions;
 }
-/**
-Find device family indices for given VkPhysicalDevice
-
-We query the given physical device for physical device
-family properties. We break away if the device has
-complete
-number of indices for given device family.
-*/
-// void HelloTriangle::pickPhysicalDevice() {
-////
-// uint32_t device_count = 0;
-// vkEnumeratePhysicalDevices(instance, &device_count,
-//                           nullptr);
-
-////
-// if (device_count == 0) {
-//  throw std::runtime_error(
-//      "Vulkan api is not supported by your hardware");
-//}
-// std::vector<VkPhysicalDevice> devices(device_count);
-// vkEnumeratePhysicalDevices(instance, &device_count,
-//                           devices.data());
-
-// for (const auto &device : devices) {
-//  //
-//  if (is_device_suitable(device)) {
-//    //
-//    physical_dev = device;
-//    break;
-//  }
-//}
-// if (physical_dev == VK_NULL_HANDLE) {
-//  //
-//  throw std::runtime_error("Your device does not "
-//                           "respond to any of "
-//                           "available queueFamilies");
-//}
-//}
 VkSurfaceFormatKHR HelloTriangle::chooseSwapSurfaceFormat(
     const std::vector<VkSurfaceFormatKHR> &availables) {
   //
@@ -484,7 +446,7 @@ VkExtent2D HelloTriangle::chooseSwapExtent(
 void HelloTriangle::createSwapChain() {
   SwapChainSupportDetails swap_details =
       SwapChainSupportDetails::querySwapChainSupport(
-          physical_dev->pdevice, physical_dev->surface);
+          physical_dev.pdevice, physical_dev.surface);
 
   VkSurfaceFormatKHR surfaceFormat =
       chooseSwapSurfaceFormat(swap_details.formats);
@@ -507,7 +469,7 @@ void HelloTriangle::createSwapChain() {
   createInfo.sType =
       VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   // surface
-  createInfo.surface = physical_dev->surface;
+  createInfo.surface = physical_dev.surface;
 
   // image type, size etc
   createInfo.minImageCount = img_count;
@@ -520,7 +482,7 @@ void HelloTriangle::createSwapChain() {
 
   QueuFamilyIndices indices =
       QueuFamilyIndices::find_family_indices(
-          physical_dev->pdevice, physical_dev->surface);
+          physical_dev.pdevice, physical_dev.surface);
   uint32_t qfamily_indices[] = {
       indices.graphics_family.value(),
       indices.present_family.value()};
@@ -545,85 +507,24 @@ void HelloTriangle::createSwapChain() {
   createInfo.oldSwapchain = VK_NULL_HANDLE;
 
   //
-  CHECK_VK(vkCreateSwapchainKHR(l_device, &createInfo,
-                                nullptr, &swap_chain),
+  CHECK_VK(vkCreateSwapchainKHR(l_device.ldevice,
+                                &createInfo, nullptr,
+                                &swap_chain),
            "failed to create a swap chain");
 
-  CHECK_VK(vkGetSwapchainImagesKHR(l_device, swap_chain,
-                                   &img_count, nullptr),
+  CHECK_VK(vkGetSwapchainImagesKHR(l_device.ldevice,
+                                   swap_chain, &img_count,
+                                   nullptr),
            "failed to reserve for swapchain images");
   swapchain_images.resize(img_count);
-  CHECK_VK(vkGetSwapchainImagesKHR(l_device, swap_chain,
-                                   &img_count,
+  CHECK_VK(vkGetSwapchainImagesKHR(l_device.ldevice,
+                                   swap_chain, &img_count,
                                    swapchain_images.data()),
            "failed to set swapchain images");
   swapchain_image_format = surfaceFormat.format;
   swapchain_extent = extent;
 }
-/**
-  Query supported swap chain details.
 
-  \c vkGetPhysicalDeviceSurfaceFormatsKHR() \c for
-  querying supported
-  color formats (unorm, srgb, etc)
-
-  \c vkGetPhysicalDeviceSurfacePresentModesKHR \c for
-  querying supported
-  data structures for presentation to be used in swap
-  chain management.
- */
-// SwapChainSupportDetails
-// HelloTriangle::querySwapChainSupport(
-//  VkPhysicalDevice pdev) {
-// SwapChainSupportDetails details;
-
-// vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-//    pdev, surface, &details.capabilities);
-
-// uint32_t format_count = 0;
-// vkGetPhysicalDeviceSurfaceFormatsKHR(
-//    pdev, surface, &format_count, nullptr);
-
-// if (format_count != 0) {
-//  details.formats.resize(format_count);
-//  vkGetPhysicalDeviceSurfaceFormatsKHR(
-//      pdev, surface, &format_count,
-//      details.formats.data());
-//}
-// uint32_t present_count = 0;
-// vkGetPhysicalDeviceSurfacePresentModesKHR(
-//    pdev, surface, &present_count, nullptr);
-
-// if (present_count != 0) {
-//  details.present_modes.resize(present_count);
-//  vkGetPhysicalDeviceSurfacePresentModesKHR(
-//      pdev, surface, &present_count,
-//      details.present_modes.data());
-//}
-// return details;
-//}
-/**
-  Check if the device is suitable for implementing a swap
-  chain
- */
-// bool HelloTriangle::is_device_suitable(
-//  VkPhysicalDevice pdev) {
-// QueuFamilyIndices indices =
-//    QueuFamilyIndices::find_family_indices(pdev, surface);
-// bool areExtensionsSupported =
-//    checkDeviceExtensionSupport(pdev);
-
-// bool isSwapChainPossible = false;
-// if (areExtensionsSupported) {
-//  SwapChainSupportDetails swapChainSupport =
-//      querySwapChainSupport(pdev);
-//  isSwapChainPossible =
-//      !swapChainSupport.formats.empty() &&
-//      !swapChainSupport.present_modes.empty();
-//}
-// return indices.is_complete() && areExtensionsSupported &&
-//       isSwapChainPossible;
-//}
 /**
   Check if device support requested extensions.
 
@@ -652,67 +553,6 @@ bool HelloTriangle::checkDeviceExtensionSupport(
   }
   return requested_extensions.empty();
 }
-void HelloTriangle::createLogicalDevice() {
-  //
-  QueuFamilyIndices indices =
-      QueuFamilyIndices::find_family_indices(
-          physical_dev->pdevice, physical_dev->surface);
-
-  std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-  std::set<uint32_t> uniqueQueueFamilies = {
-      indices.graphics_family.value(),
-      indices.present_family.value()};
-
-  float queuePriority = 1.0f;
-  for (uint32_t qfamily : uniqueQueueFamilies) {
-    VkDeviceQueueCreateInfo queueCreateInfo{};
-    queueCreateInfo.sType =
-        VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = qfamily;
-    queueCreateInfo.queueCount = 1;
-    queueCreateInfo.pQueuePriorities = &queuePriority;
-    queueCreateInfos.push_back(queueCreateInfo);
-  }
-
-  //
-  VkPhysicalDeviceFeatures deviceFeature{};
-
-  //
-  VkDeviceCreateInfo createInfo{};
-  createInfo.sType =
-      VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-
-  createInfo.queueCreateInfoCount =
-      static_cast<uint32_t>(queueCreateInfos.size());
-  createInfo.pQueueCreateInfos = queueCreateInfos.data();
-
-  createInfo.pEnabledFeatures = &deviceFeature;
-  createInfo.enabledExtensionCount =
-      static_cast<uint32_t>(device_extensions.size());
-  createInfo.ppEnabledExtensionNames =
-      device_extensions.data();
-
-  //
-  if (enableValidationLayers) {
-    createInfo.enabledLayerCount = static_cast<uint32_t>(
-        requested_validation_layers.size());
-    createInfo.ppEnabledLayerNames =
-        requested_validation_layers.data();
-  } else {
-    createInfo.enabledLayerCount = 0;
-  }
-  CHECK_VK(vkCreateDevice(physical_dev->pdevice,
-                          &createInfo, nullptr, &l_device),
-           "failed to create a logical device given "
-           "create info params");
-
-  //
-  vkGetDeviceQueue(l_device,
-                   indices.graphics_family.value(), 0,
-                   &graphics_queue);
-  vkGetDeviceQueue(l_device, indices.present_family.value(),
-                   0, &present_queue);
-}
 void HelloTriangle::createSwapChainImageViews() {
   swapchain_image_views.resize(swapchain_images.size());
   for (std::size_t i = 0; i < swapchain_images.size();
@@ -739,8 +579,8 @@ void HelloTriangle::createSwapChainImageViews() {
     createInfo.subresourceRange.levelCount = 1;
     createInfo.subresourceRange.baseArrayLayer = 0;
     createInfo.subresourceRange.layerCount = 1;
-    CHECK_VK(vkCreateImageView(l_device, &createInfo,
-                               nullptr,
+    CHECK_VK(vkCreateImageView(l_device.ldevice,
+                               &createInfo, nullptr,
                                &swapchain_image_views[i]),
              "failed to create image view");
   }
@@ -756,8 +596,9 @@ VkShaderModule HelloTriangle::createShaderModule(
       reinterpret_cast<const uint32_t *>(shaderCode.data());
 
   VkShaderModule shaderModule;
-  CHECK_VK(vkCreateShaderModule(l_device, &createInfo,
-                                nullptr, &shaderModule),
+  CHECK_VK(vkCreateShaderModule(l_device.ldevice,
+                                &createInfo, nullptr,
+                                &shaderModule),
            "failed to create shader module");
   return shaderModule;
 }
@@ -875,10 +716,10 @@ void HelloTriangle::createGraphicsPipeline() {
   pipelineLayoutInfo.setLayoutCount = 0;
   pipelineLayoutInfo.pushConstantRangeCount = 0;
 
-  CHECK_VK(
-      vkCreatePipelineLayout(l_device, &pipelineLayoutInfo,
-                             nullptr, &pipeline_layout),
-      "failed to create pipeline layout");
+  CHECK_VK(vkCreatePipelineLayout(
+               l_device.ldevice, &pipelineLayoutInfo,
+               nullptr, &pipeline_layout),
+           "failed to create pipeline layout");
 
   // create pipeline object
   VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -898,12 +739,14 @@ void HelloTriangle::createGraphicsPipeline() {
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
   CHECK_VK(vkCreateGraphicsPipelines(
-               l_device, VK_NULL_HANDLE, 1, &pipelineInfo,
-               nullptr, &graphics_pipeline),
+               l_device.ldevice, VK_NULL_HANDLE, 1,
+               &pipelineInfo, nullptr, &graphics_pipeline),
            "failed to create graphics pipeline");
 
-  vkDestroyShaderModule(l_device, fragModule, nullptr);
-  vkDestroyShaderModule(l_device, vertexModule, nullptr);
+  vkDestroyShaderModule(l_device.ldevice, fragModule,
+                        nullptr);
+  vkDestroyShaderModule(l_device.ldevice, vertexModule,
+                        nullptr);
 }
 void HelloTriangle::createFramebuffers() {
   swapchain_framebuffers.resize(
@@ -924,8 +767,8 @@ void HelloTriangle::createFramebuffers() {
     framebufferInfo.layers = 1;
     //
     CHECK_VK(
-        vkCreateFramebuffer(l_device, &framebufferInfo,
-                            nullptr,
+        vkCreateFramebuffer(l_device.ldevice,
+                            &framebufferInfo, nullptr,
                             &swapchain_framebuffers[i]),
         "failed to create framebuffer for image view: " +
             std::to_string(i));
@@ -934,15 +777,16 @@ void HelloTriangle::createFramebuffers() {
 void HelloTriangle::createCommandPool() {
   QueuFamilyIndices qfi =
       QueuFamilyIndices::find_family_indices(
-          physical_dev->pdevice, physical_dev->surface);
+          physical_dev.pdevice, physical_dev.surface);
 
   VkCommandPoolCreateInfo commandPoolInfo{};
   commandPoolInfo.sType =
       VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   commandPoolInfo.queueFamilyIndex =
       qfi.graphics_family.value();
-  CHECK_VK(vkCreateCommandPool(l_device, &commandPoolInfo,
-                               nullptr, &command_pool),
+  CHECK_VK(vkCreateCommandPool(l_device.ldevice,
+                               &commandPoolInfo, nullptr,
+                               &command_pool),
            "failed to create command pool");
 }
 void HelloTriangle::createCommandBuffer() {
@@ -958,7 +802,8 @@ void HelloTriangle::createCommandBuffer() {
       static_cast<uint32_t>(command_buffers.size());
   //
   CHECK_VK(
-      vkAllocateCommandBuffers(l_device, &comAllocInfo,
+      vkAllocateCommandBuffers(l_device.ldevice,
+                               &comAllocInfo,
                                command_buffers.data()),
       "failed allocate for registering command buffers");
 
@@ -1015,43 +860,47 @@ void HelloTriangle::createSyncObjects() {
   fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
   for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-    CHECK_VK(
-        vkCreateSemaphore(l_device, &semaphoreInfo, nullptr,
-                          &image_available_semaphores[i]),
-        "Failed to create image available semaphore");
-    CHECK_VK(
-        vkCreateSemaphore(l_device, &semaphoreInfo, nullptr,
-                          &render_finished_semaphores[i]),
-        "Failed to create render finished semaphore");
+    CHECK_VK(vkCreateSemaphore(
+                 l_device.ldevice, &semaphoreInfo, nullptr,
+                 &image_available_semaphores[i]),
+             "Failed to create image available semaphore");
+    CHECK_VK(vkCreateSemaphore(
+                 l_device.ldevice, &semaphoreInfo, nullptr,
+                 &render_finished_semaphores[i]),
+             "Failed to create render finished semaphore");
 
-    CHECK_VK(vkCreateFence(l_device, &fenceInfo, nullptr,
-                           &current_fences[i]),
+    CHECK_VK(vkCreateFence(l_device.ldevice, &fenceInfo,
+                           nullptr, &current_fences[i]),
              "Failed to in flight fence");
   }
 }
 void HelloTriangle::cleanupSwapchain() {
   //
   vkFreeCommandBuffers(
-      l_device, command_pool,
+      l_device.ldevice, command_pool,
       static_cast<uint32_t>(command_buffers.size()),
       command_buffers.data());
 
   for (auto framebuffer : swapchain_framebuffers) {
     //
-    vkDestroyFramebuffer(l_device, framebuffer, nullptr);
+    vkDestroyFramebuffer(l_device.ldevice, framebuffer,
+                         nullptr);
   }
-  vkDestroyPipeline(l_device, graphics_pipeline, nullptr);
+  vkDestroyPipeline(l_device.ldevice, graphics_pipeline,
+                    nullptr);
   // 1. destroy pipeline layout
-  vkDestroyPipelineLayout(l_device, pipeline_layout,
+  vkDestroyPipelineLayout(l_device.ldevice, pipeline_layout,
                           nullptr);
   // 2. destroy rendering pass
-  vkDestroyRenderPass(l_device, render_pass, nullptr);
+  vkDestroyRenderPass(l_device.ldevice, render_pass,
+                      nullptr);
   // 2. destroy swap chain image views
   for (auto imview : swapchain_image_views) {
-    vkDestroyImageView(l_device, imview, nullptr);
+    vkDestroyImageView(l_device.ldevice, imview, nullptr);
   }
   // 3. destroy swap chain
-  vkDestroySwapchainKHR(l_device, swap_chain, nullptr);
+  vkDestroySwapchainKHR(l_device.ldevice, swap_chain,
+                        nullptr);
 }
 void HelloTriangle::recreateSwapchain() {
   //
@@ -1061,7 +910,7 @@ void HelloTriangle::recreateSwapchain() {
     glfwGetFramebufferSize(window, &width, &height);
     glfwWaitEvents();
   }
-  vkDeviceWaitIdle(l_device);
+  vkDeviceWaitIdle(l_device.ldevice);
   cleanupSwapchain();
   createSwapChain();
   createSwapChainImageViews();
@@ -1071,13 +920,13 @@ void HelloTriangle::recreateSwapchain() {
   createCommandBuffer();
 }
 void HelloTriangle::draw() {
-  vkWaitForFences(l_device, 1,
+  vkWaitForFences(l_device.ldevice, 1,
                   &current_fences[current_frame], VK_TRUE,
                   UINT64_MAX);
 
   uint32_t image_index;
   VkResult res = vkAcquireNextImageKHR(
-      l_device, swap_chain, UINT64_MAX,
+      l_device.ldevice, swap_chain, UINT64_MAX,
       image_available_semaphores[current_frame],
       VK_NULL_HANDLE, &image_index);
 
@@ -1092,7 +941,7 @@ void HelloTriangle::draw() {
   }
 
   if (images_in_flight[image_index] != VK_NULL_HANDLE) {
-    vkWaitForFences(l_device, 1,
+    vkWaitForFences(l_device.ldevice, 1,
                     &images_in_flight[image_index], VK_TRUE,
                     UINT64_MAX);
   }
@@ -1119,10 +968,11 @@ void HelloTriangle::draw() {
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
-  vkResetFences(l_device, 1,
+  vkResetFences(l_device.ldevice, 1,
                 &current_fences[current_frame]);
   //
-  CHECK_VK(vkQueueSubmit(graphics_queue, 1, &submitInfo,
+  CHECK_VK(vkQueueSubmit(l_device.graphics_queue, 1,
+                         &submitInfo,
                          current_fences[current_frame]),
            "failed to submit draw command buffer");
   //
@@ -1137,7 +987,8 @@ void HelloTriangle::draw() {
   presentInfo.pSwapchains = swap_chains;
   presentInfo.pImageIndices = &image_index;
 
-  res = vkQueuePresentKHR(present_queue, &presentInfo);
+  res = vkQueuePresentKHR(l_device.present_queue,
+                          &presentInfo);
 
   if (res == VK_ERROR_OUT_OF_DATE_KHR ||
       res == VK_SUBOPTIMAL_KHR || framebuffer_resized) {
