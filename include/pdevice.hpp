@@ -4,6 +4,7 @@
 #include <debug.hpp>
 #include <external.hpp>
 #include <support.hpp>
+#include <utils.hpp>
 
 using namespace vtuto;
 
@@ -16,6 +17,7 @@ public:
   VkInstance *instance_ptr;
 
 public:
+  physical_device() : instance_ptr(nullptr) {}
   physical_device(VkInstance *ins, GLFWwindow *window)
       : instance_ptr(ins) {
     // 1. create surface
@@ -48,7 +50,7 @@ public:
                                "available queueFamilies");
     }
   }
-  ~physical_device() {
+  void destroy() {
     vkDestroySurfaceKHR(instance(), surface, nullptr);
   }
   bool is_device_suitable(VkPhysicalDevice pdev) {
@@ -61,7 +63,9 @@ public:
     bool isSwapChainPossible = false;
     if (areExtensionsSupported) {
       SwapChainSupportDetails swapChainSupport =
-          querySwapChainSupport(pdev);
+          SwapChainSupportDetails::querySwapChainSupport(
+              pdev, surface);
+
       isSwapChainPossible =
           !swapChainSupport.formats.empty() &&
           !swapChainSupport.present_modes.empty();

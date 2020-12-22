@@ -1,8 +1,11 @@
 #pragma once
 #include <debug.hpp>
 #include <external.hpp>
-#include <utils.hpp>
+#include <pdevice.hpp>
 #include <support.hpp>
+#include <utils.hpp>
+
+using namespace vtuto;
 
 namespace vtuto {
 
@@ -22,10 +25,12 @@ public:
   VkDebugUtilsMessengerEXT debugMessenger;
 
   /** window surface object*/
-  VkSurfaceKHR surface;
+  // VkSurfaceKHR surface;
 
   /** physical device handler*/
-  VkPhysicalDevice physical_dev = VK_NULL_HANDLE;
+  // VkPhysicalDevice physical_dev = VK_NULL_HANDLE;
+
+  physical_device *physical_dev;
 
   /** logical device handler */
   VkDevice l_device;
@@ -92,6 +97,9 @@ public:
 
     Steps to run the application
    */
+  ~HelloTriangle(){
+      delete physical_dev;
+  }
   void run();
 
 private:

@@ -73,10 +73,11 @@ void HelloTriangle::initVulkan() {
   setupDebugMessenger();
 
   // 3. Create surface
-  createSurface();
+  // createSurface();
 
   // 3. Pick physical device
-  pickPhysicalDevice();
+  // pickPhysicalDevice();
+  physical_dev = new physical_device(&instance, window);
 
   // 4. Create logical device
   createLogicalDevice();
@@ -210,7 +211,7 @@ void HelloTriangle::cleanUp() {
                                   nullptr);
   }
   // 6. destroy surface
-  vkDestroySurfaceKHR(instance, surface, nullptr);
+  physical_dev->destroy();
 
   // 7. destroy instance always last in
   // a vulkan application.
@@ -293,11 +294,11 @@ void HelloTriangle::populateDebugMessengerCreateInfo(
   //
   createInfo.pfnUserCallback = debugCallback;
 }
-void HelloTriangle::createSurface() {
-  CHECK_VK(glfwCreateWindowSurface(instance, window,
-                                   nullptr, &surface),
-           "failed to create window surface");
-}
+// void HelloTriangle::createSurface() {
+// CHECK_VK(glfwCreateWindowSurface(instance, window,
+//                                 nullptr, &surface),
+//         "failed to create window surface");
+//}
 
 void HelloTriangle::createRenderPass() {
   //
@@ -390,36 +391,36 @@ family properties. We break away if the device has
 complete
 number of indices for given device family.
 */
-void HelloTriangle::pickPhysicalDevice() {
-  //
-  uint32_t device_count = 0;
-  vkEnumeratePhysicalDevices(instance, &device_count,
-                             nullptr);
+// void HelloTriangle::pickPhysicalDevice() {
+////
+// uint32_t device_count = 0;
+// vkEnumeratePhysicalDevices(instance, &device_count,
+//                           nullptr);
 
-  //
-  if (device_count == 0) {
-    throw std::runtime_error(
-        "Vulkan api is not supported by your hardware");
-  }
-  std::vector<VkPhysicalDevice> devices(device_count);
-  vkEnumeratePhysicalDevices(instance, &device_count,
-                             devices.data());
+////
+// if (device_count == 0) {
+//  throw std::runtime_error(
+//      "Vulkan api is not supported by your hardware");
+//}
+// std::vector<VkPhysicalDevice> devices(device_count);
+// vkEnumeratePhysicalDevices(instance, &device_count,
+//                           devices.data());
 
-  for (const auto &device : devices) {
-    //
-    if (is_device_suitable(device)) {
-      //
-      physical_dev = device;
-      break;
-    }
-  }
-  if (physical_dev == VK_NULL_HANDLE) {
-    //
-    throw std::runtime_error("Your device does not "
-                             "respond to any of "
-                             "available queueFamilies");
-  }
-}
+// for (const auto &device : devices) {
+//  //
+//  if (is_device_suitable(device)) {
+//    //
+//    physical_dev = device;
+//    break;
+//  }
+//}
+// if (physical_dev == VK_NULL_HANDLE) {
+//  //
+//  throw std::runtime_error("Your device does not "
+//                           "respond to any of "
+//                           "available queueFamilies");
+//}
+//}
 VkSurfaceFormatKHR HelloTriangle::chooseSwapSurfaceFormat(
     const std::vector<VkSurfaceFormatKHR> &availables) {
   //
@@ -482,7 +483,8 @@ VkExtent2D HelloTriangle::chooseSwapExtent(
 }
 void HelloTriangle::createSwapChain() {
   SwapChainSupportDetails swap_details =
-      querySwapChainSupport(physical_dev);
+      SwapChainSupportDetails::querySwapChainSupport(
+          physical_dev->pdevice, physical_dev->surface);
 
   VkSurfaceFormatKHR surfaceFormat =
       chooseSwapSurfaceFormat(swap_details.formats);
@@ -505,7 +507,7 @@ void HelloTriangle::createSwapChain() {
   createInfo.sType =
       VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   // surface
-  createInfo.surface = surface;
+  createInfo.surface = physical_dev->surface;
 
   // image type, size etc
   createInfo.minImageCount = img_count;
@@ -517,8 +519,8 @@ void HelloTriangle::createSwapChain() {
       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
   QueuFamilyIndices indices =
-      QueuFamilyIndices::find_family_indices(physical_dev,
-                                             surface);
+      QueuFamilyIndices::find_family_indices(
+          physical_dev->pdevice, physical_dev->surface);
   uint32_t qfamily_indices[] = {
       indices.graphics_family.value(),
       indices.present_family.value()};
@@ -570,58 +572,58 @@ void HelloTriangle::createSwapChain() {
   data structures for presentation to be used in swap
   chain management.
  */
-SwapChainSupportDetails
-HelloTriangle::querySwapChainSupport(
-    VkPhysicalDevice pdev) {
-  SwapChainSupportDetails details;
+// SwapChainSupportDetails
+// HelloTriangle::querySwapChainSupport(
+//  VkPhysicalDevice pdev) {
+// SwapChainSupportDetails details;
 
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-      pdev, surface, &details.capabilities);
+// vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+//    pdev, surface, &details.capabilities);
 
-  uint32_t format_count = 0;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(
-      pdev, surface, &format_count, nullptr);
+// uint32_t format_count = 0;
+// vkGetPhysicalDeviceSurfaceFormatsKHR(
+//    pdev, surface, &format_count, nullptr);
 
-  if (format_count != 0) {
-    details.formats.resize(format_count);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(
-        pdev, surface, &format_count,
-        details.formats.data());
-  }
-  uint32_t present_count = 0;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(
-      pdev, surface, &present_count, nullptr);
+// if (format_count != 0) {
+//  details.formats.resize(format_count);
+//  vkGetPhysicalDeviceSurfaceFormatsKHR(
+//      pdev, surface, &format_count,
+//      details.formats.data());
+//}
+// uint32_t present_count = 0;
+// vkGetPhysicalDeviceSurfacePresentModesKHR(
+//    pdev, surface, &present_count, nullptr);
 
-  if (present_count != 0) {
-    details.present_modes.resize(present_count);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(
-        pdev, surface, &present_count,
-        details.present_modes.data());
-  }
-  return details;
-}
+// if (present_count != 0) {
+//  details.present_modes.resize(present_count);
+//  vkGetPhysicalDeviceSurfacePresentModesKHR(
+//      pdev, surface, &present_count,
+//      details.present_modes.data());
+//}
+// return details;
+//}
 /**
   Check if the device is suitable for implementing a swap
   chain
  */
-bool HelloTriangle::is_device_suitable(
-    VkPhysicalDevice pdev) {
-  QueuFamilyIndices indices =
-      QueuFamilyIndices::find_family_indices(pdev, surface);
-  bool areExtensionsSupported =
-      checkDeviceExtensionSupport(pdev);
+// bool HelloTriangle::is_device_suitable(
+//  VkPhysicalDevice pdev) {
+// QueuFamilyIndices indices =
+//    QueuFamilyIndices::find_family_indices(pdev, surface);
+// bool areExtensionsSupported =
+//    checkDeviceExtensionSupport(pdev);
 
-  bool isSwapChainPossible = false;
-  if (areExtensionsSupported) {
-    SwapChainSupportDetails swapChainSupport =
-        querySwapChainSupport(pdev);
-    isSwapChainPossible =
-        !swapChainSupport.formats.empty() &&
-        !swapChainSupport.present_modes.empty();
-  }
-  return indices.is_complete() && areExtensionsSupported &&
-         isSwapChainPossible;
-}
+// bool isSwapChainPossible = false;
+// if (areExtensionsSupported) {
+//  SwapChainSupportDetails swapChainSupport =
+//      querySwapChainSupport(pdev);
+//  isSwapChainPossible =
+//      !swapChainSupport.formats.empty() &&
+//      !swapChainSupport.present_modes.empty();
+//}
+// return indices.is_complete() && areExtensionsSupported &&
+//       isSwapChainPossible;
+//}
 /**
   Check if device support requested extensions.
 
@@ -653,8 +655,8 @@ bool HelloTriangle::checkDeviceExtensionSupport(
 void HelloTriangle::createLogicalDevice() {
   //
   QueuFamilyIndices indices =
-      QueuFamilyIndices::find_family_indices(physical_dev,
-                                             surface);
+      QueuFamilyIndices::find_family_indices(
+          physical_dev->pdevice, physical_dev->surface);
 
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
   std::set<uint32_t> uniqueQueueFamilies = {
@@ -699,8 +701,8 @@ void HelloTriangle::createLogicalDevice() {
   } else {
     createInfo.enabledLayerCount = 0;
   }
-  CHECK_VK(vkCreateDevice(physical_dev, &createInfo,
-                          nullptr, &l_device),
+  CHECK_VK(vkCreateDevice(physical_dev->pdevice,
+                          &createInfo, nullptr, &l_device),
            "failed to create a logical device given "
            "create info params");
 
@@ -931,8 +933,8 @@ void HelloTriangle::createFramebuffers() {
 }
 void HelloTriangle::createCommandPool() {
   QueuFamilyIndices qfi =
-      QueuFamilyIndices::find_family_indices(physical_dev,
-                                             surface);
+      QueuFamilyIndices::find_family_indices(
+          physical_dev->pdevice, physical_dev->surface);
 
   VkCommandPoolCreateInfo commandPoolInfo{};
   commandPoolInfo.sType =
