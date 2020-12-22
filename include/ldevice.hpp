@@ -10,8 +10,7 @@ using namespace vtuto;
 
 namespace vtuto {
 //
-class logical_device {
-  //
+template <> class vulkan_device<VkDevice> {
 public:
   /** logical device handler */
   VkDevice ldevice;
@@ -23,9 +22,10 @@ public:
   VkQueue present_queue;
 
 public:
-  logical_device() {}
-  logical_device(bool enableVLayers,
-                 const physical_device &physical_dev) {
+  vulkan_device() {}
+  vulkan_device(
+      bool enableVLayers,
+      const vulkan_device<VkPhysicalDevice> &physical_dev) {
     QueuFamilyIndices indices =
         QueuFamilyIndices::find_family_indices(
             physical_dev.pdevice, physical_dev.surface);
@@ -87,5 +87,6 @@ public:
                      &present_queue);
   }
   void destroy() { vkDestroyDevice(ldevice, nullptr); }
+  VkDevice device() { return ldevice; }
 };
 }

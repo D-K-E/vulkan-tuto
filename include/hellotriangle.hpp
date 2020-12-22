@@ -32,10 +32,10 @@ public:
   // VkPhysicalDevice physical_dev = VK_NULL_HANDLE;
 
   /** physical device pointer*/
-  physical_device physical_dev;
+  vulkan_device<VkPhysicalDevice> physical_dev;
 
   /** logical device pointer */
-  logical_device l_device;
+  vulkan_device<VkDevice> logical_dev;
 
   /** swapchain for handling frame rate*/
   VkSwapchainKHR swap_chain;

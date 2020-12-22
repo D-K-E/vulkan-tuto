@@ -11,24 +11,20 @@ using namespace vtuto;
 
 namespace vtuto {
 
-class physical_device {
+template <> class vulkan_device<VkPhysicalDevice> {
 public:
   VkPhysicalDevice pdevice = VK_NULL_HANDLE;
   VkSurfaceKHR surface;
   VkInstance *instance_ptr;
 
 public:
-  physical_device() : instance_ptr(nullptr) {}
-  /**
-  Find device family indices for given VkPhysicalDevice
+  vulkan_device() : instance_ptr(nullptr) {}
 
-  We query the given physical device for physical device
-  family properties. We break away if the device has
-  complete
-  number of indices for given device family.
-  */
-
-  physical_device(VkInstance *ins, GLFWwindow *window)
+  VkPhysicalDevice device() { return pdevice; }
+  void destroy() {
+    vkDestroySurfaceKHR(instance(), surface, nullptr);
+  }
+  vulkan_device(VkInstance *ins, GLFWwindow *window)
       : instance_ptr(ins) {
     // 1. create surface
     createSurface(window);
@@ -60,13 +56,11 @@ public:
                                "available queueFamilies");
     }
   }
-  void destroy() {
-    vkDestroySurfaceKHR(instance(), surface, nullptr);
-  }
   /**
-    Check if the device is suitable for implementing a swap
-    chain
-   */
+      Check if the device is suitable for implementing a
+     swap
+      chain
+     */
 
   bool is_device_suitable(VkPhysicalDevice pdev) {
     QueuFamilyIndices indices =
@@ -113,35 +107,6 @@ public:
       requested_extensions.erase(ext.extensionName);
     }
     return requested_extensions.empty();
-  }
-  SwapChainSupportDetails
-  querySwapChainSupport(VkPhysicalDevice pdev) {
-    SwapChainSupportDetails details;
-
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-        pdev, surface, &details.capabilities);
-
-    uint32_t format_count = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(
-        pdev, surface, &format_count, nullptr);
-
-    if (format_count != 0) {
-      details.formats.resize(format_count);
-      vkGetPhysicalDeviceSurfaceFormatsKHR(
-          pdev, surface, &format_count,
-          details.formats.data());
-    }
-    uint32_t present_count = 0;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(
-        pdev, surface, &present_count, nullptr);
-
-    if (present_count != 0) {
-      details.present_modes.resize(present_count);
-      vkGetPhysicalDeviceSurfacePresentModesKHR(
-          pdev, surface, &present_count,
-          details.present_modes.data());
-    }
-    return details;
   }
 };
 }
