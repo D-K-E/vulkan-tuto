@@ -37,15 +37,6 @@ public:
   /** logical device pointer */
   logical_device l_device;
 
-  /** logical device handler */
-  // VkDevice l_device;
-
-  /** graphics queue */
-  // VkQueue graphics_queue;
-
-  /** window surface queue*/
-  // VkQueue present_queue;
-
   /** swapchain for handling frame rate*/
   VkSwapchainKHR swap_chain;
 
