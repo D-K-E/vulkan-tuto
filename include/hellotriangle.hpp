@@ -27,12 +27,6 @@ public:
   /** debug callback function handler */
   VkDebugUtilsMessengerEXT debugMessenger;
 
-  /** window surface object*/
-  // VkSurfaceKHR surface;
-
-  /** physical device handler*/
-  // VkPhysicalDevice physical_dev = VK_NULL_HANDLE;
-
   /** physical device pointer*/
   vulkan_device<VkPhysicalDevice> physical_dev;
 
@@ -40,20 +34,9 @@ public:
   vulkan_device<VkDevice> logical_dev;
 
   /** swapchain for handling frame rate*/
-  // VkSwapchainKHR swap_chain;
   swapchain swap_chain;
 
-  /** images in swap chain */
-  // std::vector<VkImage> swapchain_images;
-
-  /** swapchain image format*/
-  // VkFormat swapchain_image_format;
-
-  /** swapchain extent*/
-  // VkExtent2D swapchain_extent;
-
   /** swapchain image view */
-  // std::vector<VkImageView> swapchain_image_views;
   image_view swapchain_image_views;
 
   /** swap chain frame buffers*/
@@ -243,7 +226,6 @@ number of indices for given device family.
 
   VkExtent2D chooseSwapExtent(
       const VkSurfaceCapabilitiesKHR &capabilities);
-  // void createSwapChain();
   /**
     Query supported swap chain details.
 
@@ -272,7 +254,6 @@ number of indices for given device family.
    */
   bool checkDeviceExtensionSupport(VkPhysicalDevice pdev);
   void createLogicalDevice();
-  // void createSwapChainImageViews();
   VkShaderModule
   createShaderModule(const std::vector<char> &shaderCode);
   void createGraphicsPipeline();
@@ -280,7 +261,6 @@ number of indices for given device family.
   void createCommandPool();
   void createCommandBuffer();
   void createSyncObjects();
-  // void cleanupSwapchain();
   void recreateSwapchain();
   void draw();
 };

@@ -82,11 +82,9 @@ void HelloTriangle::initVulkan() {
       enableValidationLayers, physical_dev);
 
   // 5. create swap chain
-  // createSwapChain();
   swap_chain = swapchain(physical_dev, logical_dev, window);
 
   // 6. create swap chain image views
-  // createSwapChainImageViews();
   swapchain_image_views =
       image_view(swap_chain.simages,
                  swap_chain.simage_format, logical_dev);
@@ -197,7 +195,6 @@ void HelloTriangle::renderLoop() {
  */
 void HelloTriangle::cleanUp() {
   //
-  // cleanupSwapchain();
   swap_chain.destroy(logical_dev, command_pool,
                      command_buffers,
                      swapchain_framebuffers, render_pass,
@@ -452,88 +449,6 @@ VkExtent2D HelloTriangle::chooseSwapExtent(
     return actual_extent;
   }
 }
-// void HelloTriangle::createSwapChain() {
-// SwapChainSupportDetails swap_details =
-//    SwapChainSupportDetails::querySwapChainSupport(
-//        physical_dev.pdevice, physical_dev.surface);
-
-// VkSurfaceFormatKHR surfaceFormat =
-//    chooseSwapSurfaceFormat(swap_details.formats);
-
-// VkPresentModeKHR presentMode =
-//    chooseSwapPresentMode(swap_details.present_modes);
-
-// VkExtent2D extent =
-//    chooseSwapExtent(swap_details.capabilities);
-
-// uint32_t img_count =
-//    swap_details.capabilities.minImageCount + 1;
-// if (swap_details.capabilities.maxImageCount > 0 &&
-//    img_count > swap_details.capabilities.maxImageCount) {
-//  img_count = swap_details.capabilities.maxImageCount;
-//}
-
-//// Swapchain info details
-// VkSwapchainCreateInfoKHR createInfo{};
-// createInfo.sType =
-//    VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-//// surface
-// createInfo.surface = physical_dev.surface;
-
-//// image type, size etc
-// createInfo.minImageCount = img_count;
-// createInfo.imageFormat = surfaceFormat.format;
-// createInfo.imageColorSpace = surfaceFormat.colorSpace;
-// createInfo.imageExtent = extent;
-// createInfo.imageArrayLayers = 1;
-// createInfo.imageUsage =
-//    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-// QueuFamilyIndices indices =
-//    QueuFamilyIndices::find_family_indices(
-//        physical_dev.pdevice, physical_dev.surface);
-// uint32_t qfamily_indices[] = {
-//    indices.graphics_family.value(),
-//    indices.present_family.value()};
-
-// if (indices.graphics_family != indices.present_family) {
-//  createInfo.imageSharingMode =
-//      VK_SHARING_MODE_CONCURRENT;
-//  createInfo.queueFamilyIndexCount = 2;
-//  createInfo.pQueueFamilyIndices = qfamily_indices;
-//} else {
-//  createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-//}
-
-// createInfo.preTransform =
-//    swap_details.capabilities.currentTransform;
-// createInfo.compositeAlpha =
-//    VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-// createInfo.presentMode = presentMode;
-// createInfo.clipped = VK_TRUE;
-
-//// handling of used ressources
-// createInfo.oldSwapchain = VK_NULL_HANDLE;
-
-////
-// CHECK_VK(vkCreateSwapchainKHR(logical_dev.device(),
-//                              &createInfo, nullptr,
-//                              &swap_chain.chain),
-//         "failed to create a swap chain");
-
-// CHECK_VK(vkGetSwapchainImagesKHR(logical_dev.device(),
-//                                 swap_chain.chain,
-//                                 &img_count,
-//                                 nullptr),
-//         "failed to reserve for swapchain images");
-// swapchain_images.resize(img_count);
-// CHECK_VK(vkGetSwapchainImagesKHR(logical_dev.device(),
-//                                 swap_chain, &img_count,
-//                                 swapchain_images.data()),
-//         "failed to set swapchain images");
-// swapchain_image_format = surfaceFormat.format;
-// swapchain_extent = extent;
-//}
 
 /**
   Check if device support requested extensions.
@@ -563,38 +478,6 @@ bool HelloTriangle::checkDeviceExtensionSupport(
   }
   return requested_extensions.empty();
 }
-// void HelloTriangle::createSwapChainImageViews() {
-// swapchain_image_views.resize(swap_chain.simages.size());
-// for (std::size_t i = 0; i < swap_chain.simages.size();
-//     i++) {
-//  //
-//  VkImageViewCreateInfo createInfo{};
-//  createInfo.sType =
-//      VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-//  createInfo.image = swap_chain.simages[i];
-//  /** view type can be 1d texture, 2d texture, 3d
-//   * textures and cubemaps*/
-//  createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-//  createInfo.format = swap_chain.simage_format;
-
-//  /** vec.xx == vec2(vec.x, vec.x) */
-//  createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-//  createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-//  createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-//  createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-
-//  createInfo.subresourceRange.aspectMask =
-//      VK_IMAGE_ASPECT_COLOR_BIT;
-//  createInfo.subresourceRange.baseMipLevel = 0;
-//  createInfo.subresourceRange.levelCount = 1;
-//  createInfo.subresourceRange.baseArrayLayer = 0;
-//  createInfo.subresourceRange.layerCount = 1;
-//  CHECK_VK(vkCreateImageView(logical_dev.device(),
-//                             &createInfo, nullptr,
-//                             &swapchain_image_views[i]),
-//           "failed to create image view");
-//}
-// }
 VkShaderModule HelloTriangle::createShaderModule(
     const std::vector<char> &shaderCode) {
   //
@@ -893,15 +776,12 @@ void HelloTriangle::recreateSwapchain() {
     glfwWaitEvents();
   }
   vkDeviceWaitIdle(logical_dev.device());
-  // cleanupSwapchain();
   swap_chain.destroy(logical_dev, command_pool,
                      command_buffers,
                      swapchain_framebuffers, render_pass,
                      graphics_pipeline, pipeline_layout,
                      swapchain_image_views.views);
-  // createSwapChain();
   swap_chain = swapchain(physical_dev, logical_dev, window);
-  // createSwapChainImageViews();
   swapchain_image_views =
       image_view(swap_chain.simages,
                  swap_chain.simage_format, logical_dev);
