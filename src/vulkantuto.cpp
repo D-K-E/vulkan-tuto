@@ -82,7 +82,8 @@ void HelloTriangle::initVulkan() {
       enableValidationLayers, physical_dev);
 
   // 5. create swap chain
-  createSwapChain();
+  // createSwapChain();
+  swap_chain = swapchain(physical_dev, logical_dev, window);
 
   // 6. create swap chain image views
   createSwapChainImageViews();
@@ -193,7 +194,13 @@ void HelloTriangle::renderLoop() {
  */
 void HelloTriangle::cleanUp() {
   //
-  cleanupSwapchain();
+  // cleanupSwapchain();
+  swap_chain.destroy(logical_dev, command_pool,
+                     command_buffers,
+                     swapchain_framebuffers, render_pass,
+                     graphics_pipeline, pipeline_layout,
+                     swapchain_image_views);
+
   for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
     vkDestroySemaphore(logical_dev.device(),
                        render_finished_semaphores[i],
@@ -301,7 +308,7 @@ void HelloTriangle::populateDebugMessengerCreateInfo(
 void HelloTriangle::createRenderPass() {
   //
   VkAttachmentDescription colorAttachment{};
-  colorAttachment.format = swapchain_image_format;
+  colorAttachment.format = swap_chain.simage_format;
   colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
   colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -442,87 +449,88 @@ VkExtent2D HelloTriangle::chooseSwapExtent(
     return actual_extent;
   }
 }
-void HelloTriangle::createSwapChain() {
-  SwapChainSupportDetails swap_details =
-      SwapChainSupportDetails::querySwapChainSupport(
-          physical_dev.pdevice, physical_dev.surface);
+// void HelloTriangle::createSwapChain() {
+// SwapChainSupportDetails swap_details =
+//    SwapChainSupportDetails::querySwapChainSupport(
+//        physical_dev.pdevice, physical_dev.surface);
 
-  VkSurfaceFormatKHR surfaceFormat =
-      chooseSwapSurfaceFormat(swap_details.formats);
+// VkSurfaceFormatKHR surfaceFormat =
+//    chooseSwapSurfaceFormat(swap_details.formats);
 
-  VkPresentModeKHR presentMode =
-      chooseSwapPresentMode(swap_details.present_modes);
+// VkPresentModeKHR presentMode =
+//    chooseSwapPresentMode(swap_details.present_modes);
 
-  VkExtent2D extent =
-      chooseSwapExtent(swap_details.capabilities);
+// VkExtent2D extent =
+//    chooseSwapExtent(swap_details.capabilities);
 
-  uint32_t img_count =
-      swap_details.capabilities.minImageCount + 1;
-  if (swap_details.capabilities.maxImageCount > 0 &&
-      img_count > swap_details.capabilities.maxImageCount) {
-    img_count = swap_details.capabilities.maxImageCount;
-  }
+// uint32_t img_count =
+//    swap_details.capabilities.minImageCount + 1;
+// if (swap_details.capabilities.maxImageCount > 0 &&
+//    img_count > swap_details.capabilities.maxImageCount) {
+//  img_count = swap_details.capabilities.maxImageCount;
+//}
 
-  // Swapchain info details
-  VkSwapchainCreateInfoKHR createInfo{};
-  createInfo.sType =
-      VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  // surface
-  createInfo.surface = physical_dev.surface;
+//// Swapchain info details
+// VkSwapchainCreateInfoKHR createInfo{};
+// createInfo.sType =
+//    VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+//// surface
+// createInfo.surface = physical_dev.surface;
 
-  // image type, size etc
-  createInfo.minImageCount = img_count;
-  createInfo.imageFormat = surfaceFormat.format;
-  createInfo.imageColorSpace = surfaceFormat.colorSpace;
-  createInfo.imageExtent = extent;
-  createInfo.imageArrayLayers = 1;
-  createInfo.imageUsage =
-      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+//// image type, size etc
+// createInfo.minImageCount = img_count;
+// createInfo.imageFormat = surfaceFormat.format;
+// createInfo.imageColorSpace = surfaceFormat.colorSpace;
+// createInfo.imageExtent = extent;
+// createInfo.imageArrayLayers = 1;
+// createInfo.imageUsage =
+//    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-  QueuFamilyIndices indices =
-      QueuFamilyIndices::find_family_indices(
-          physical_dev.pdevice, physical_dev.surface);
-  uint32_t qfamily_indices[] = {
-      indices.graphics_family.value(),
-      indices.present_family.value()};
+// QueuFamilyIndices indices =
+//    QueuFamilyIndices::find_family_indices(
+//        physical_dev.pdevice, physical_dev.surface);
+// uint32_t qfamily_indices[] = {
+//    indices.graphics_family.value(),
+//    indices.present_family.value()};
 
-  if (indices.graphics_family != indices.present_family) {
-    createInfo.imageSharingMode =
-        VK_SHARING_MODE_CONCURRENT;
-    createInfo.queueFamilyIndexCount = 2;
-    createInfo.pQueueFamilyIndices = qfamily_indices;
-  } else {
-    createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  }
+// if (indices.graphics_family != indices.present_family) {
+//  createInfo.imageSharingMode =
+//      VK_SHARING_MODE_CONCURRENT;
+//  createInfo.queueFamilyIndexCount = 2;
+//  createInfo.pQueueFamilyIndices = qfamily_indices;
+//} else {
+//  createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+//}
 
-  createInfo.preTransform =
-      swap_details.capabilities.currentTransform;
-  createInfo.compositeAlpha =
-      VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-  createInfo.presentMode = presentMode;
-  createInfo.clipped = VK_TRUE;
+// createInfo.preTransform =
+//    swap_details.capabilities.currentTransform;
+// createInfo.compositeAlpha =
+//    VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+// createInfo.presentMode = presentMode;
+// createInfo.clipped = VK_TRUE;
 
-  // handling of used ressources
-  createInfo.oldSwapchain = VK_NULL_HANDLE;
+//// handling of used ressources
+// createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-  //
-  CHECK_VK(vkCreateSwapchainKHR(logical_dev.device(),
-                                &createInfo, nullptr,
-                                &swap_chain),
-           "failed to create a swap chain");
+////
+// CHECK_VK(vkCreateSwapchainKHR(logical_dev.device(),
+//                              &createInfo, nullptr,
+//                              &swap_chain.chain),
+//         "failed to create a swap chain");
 
-  CHECK_VK(vkGetSwapchainImagesKHR(logical_dev.device(),
-                                   swap_chain, &img_count,
-                                   nullptr),
-           "failed to reserve for swapchain images");
-  swapchain_images.resize(img_count);
-  CHECK_VK(vkGetSwapchainImagesKHR(logical_dev.device(),
-                                   swap_chain, &img_count,
-                                   swapchain_images.data()),
-           "failed to set swapchain images");
-  swapchain_image_format = surfaceFormat.format;
-  swapchain_extent = extent;
-}
+// CHECK_VK(vkGetSwapchainImagesKHR(logical_dev.device(),
+//                                 swap_chain.chain,
+//                                 &img_count,
+//                                 nullptr),
+//         "failed to reserve for swapchain images");
+// swapchain_images.resize(img_count);
+// CHECK_VK(vkGetSwapchainImagesKHR(logical_dev.device(),
+//                                 swap_chain, &img_count,
+//                                 swapchain_images.data()),
+//         "failed to set swapchain images");
+// swapchain_image_format = surfaceFormat.format;
+// swapchain_extent = extent;
+//}
 
 /**
   Check if device support requested extensions.
@@ -553,18 +561,18 @@ bool HelloTriangle::checkDeviceExtensionSupport(
   return requested_extensions.empty();
 }
 void HelloTriangle::createSwapChainImageViews() {
-  swapchain_image_views.resize(swapchain_images.size());
-  for (std::size_t i = 0; i < swapchain_images.size();
+  swapchain_image_views.resize(swap_chain.simages.size());
+  for (std::size_t i = 0; i < swap_chain.simages.size();
        i++) {
     //
     VkImageViewCreateInfo createInfo{};
     createInfo.sType =
         VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    createInfo.image = swapchain_images[i];
+    createInfo.image = swap_chain.simages[i];
     /** view type can be 1d texture, 2d texture, 3d
      * textures and cubemaps*/
     createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    createInfo.format = swapchain_image_format;
+    createInfo.format = swap_chain.simage_format;
 
     /** vec.xx == vec2(vec.x, vec.x) */
     createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -647,15 +655,15 @@ void HelloTriangle::createGraphicsPipeline() {
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = 0.0f;
-  viewport.width = (float)swapchain_extent.width;
-  viewport.height = (float)swapchain_extent.height;
+  viewport.width = (float)swap_chain.sextent.width;
+  viewport.height = (float)swap_chain.sextent.height;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
 
   // scissoring area configuration
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = swapchain_extent;
+  scissor.extent = swap_chain.sextent;
 
   // viewport state change configuration
   VkPipelineViewportStateCreateInfo viewportState{};
@@ -761,8 +769,8 @@ void HelloTriangle::createFramebuffers() {
     framebufferInfo.renderPass = render_pass;
     framebufferInfo.attachmentCount = 1;
     framebufferInfo.pAttachments = image_attachments;
-    framebufferInfo.width = swapchain_extent.width;
-    framebufferInfo.height = swapchain_extent.height;
+    framebufferInfo.width = swap_chain.sextent.width;
+    framebufferInfo.height = swap_chain.sextent.height;
     framebufferInfo.layers = 1;
     //
     CHECK_VK(
@@ -822,7 +830,7 @@ void HelloTriangle::createCommandBuffer() {
     renderPassInfo.renderPass = render_pass;
     renderPassInfo.framebuffer = swapchain_framebuffers[i];
     renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = swapchain_extent;
+    renderPassInfo.renderArea.extent = swap_chain.sextent;
 
     //
     VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -846,7 +854,7 @@ void HelloTriangle::createSyncObjects() {
   image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
   render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
   current_fences.resize(MAX_FRAMES_IN_FLIGHT);
-  images_in_flight.resize(swapchain_images.size(),
+  images_in_flight.resize(swap_chain.simages.size(),
                           VK_NULL_HANDLE);
 
   // create semaphore info
@@ -873,35 +881,36 @@ void HelloTriangle::createSyncObjects() {
              "Failed to in flight fence");
   }
 }
-void HelloTriangle::cleanupSwapchain() {
-  //
-  vkFreeCommandBuffers(
-      logical_dev.device(), command_pool,
-      static_cast<uint32_t>(command_buffers.size()),
-      command_buffers.data());
+// void HelloTriangle::cleanupSwapchain() {
+////
+// vkFreeCommandBuffers(
+//    logical_dev.device(), command_pool,
+//    static_cast<uint32_t>(command_buffers.size()),
+//    command_buffers.data());
 
-  for (auto framebuffer : swapchain_framebuffers) {
-    //
-    vkDestroyFramebuffer(logical_dev.device(), framebuffer,
-                         nullptr);
-  }
-  vkDestroyPipeline(logical_dev.device(), graphics_pipeline,
-                    nullptr);
-  // 1. destroy pipeline layout
-  vkDestroyPipelineLayout(logical_dev.device(),
-                          pipeline_layout, nullptr);
-  // 2. destroy rendering pass
-  vkDestroyRenderPass(logical_dev.device(), render_pass,
-                      nullptr);
-  // 2. destroy swap chain image views
-  for (auto imview : swapchain_image_views) {
-    vkDestroyImageView(logical_dev.device(), imview,
-                       nullptr);
-  }
-  // 3. destroy swap chain
-  vkDestroySwapchainKHR(logical_dev.device(), swap_chain,
-                        nullptr);
-}
+// for (auto framebuffer : swapchain_framebuffers) {
+//  //
+//  vkDestroyFramebuffer(logical_dev.device(), framebuffer,
+//                       nullptr);
+//}
+// vkDestroyPipeline(logical_dev.device(),
+// graphics_pipeline,
+//                  nullptr);
+//// 1. destroy pipeline layout
+// vkDestroyPipelineLayout(logical_dev.device(),
+//                        pipeline_layout, nullptr);
+//// 2. destroy rendering pass
+// vkDestroyRenderPass(logical_dev.device(), render_pass,
+//                    nullptr);
+//// 2. destroy swap chain image views
+// for (auto imview : swapchain_image_views) {
+//  vkDestroyImageView(logical_dev.device(), imview,
+//                     nullptr);
+//}
+//// 3. destroy swap chain
+// vkDestroySwapchainKHR(logical_dev.device(),
+//                      swap_chain.chain, nullptr);
+// }
 void HelloTriangle::recreateSwapchain() {
   //
   int width, height;
@@ -911,8 +920,14 @@ void HelloTriangle::recreateSwapchain() {
     glfwWaitEvents();
   }
   vkDeviceWaitIdle(logical_dev.device());
-  cleanupSwapchain();
-  createSwapChain();
+  // cleanupSwapchain();
+  swap_chain.destroy(logical_dev, command_pool,
+                     command_buffers,
+                     swapchain_framebuffers, render_pass,
+                     graphics_pipeline, pipeline_layout,
+                     swapchain_image_views);
+  // createSwapChain();
+  swap_chain = swapchain(physical_dev, logical_dev, window);
   createSwapChainImageViews();
   createRenderPass();
   createGraphicsPipeline();
@@ -926,7 +941,7 @@ void HelloTriangle::draw() {
 
   uint32_t image_index;
   VkResult res = vkAcquireNextImageKHR(
-      logical_dev.device(), swap_chain, UINT64_MAX,
+      logical_dev.device(), swap_chain.chain, UINT64_MAX,
       image_available_semaphores[current_frame],
       VK_NULL_HANDLE, &image_index);
 
@@ -982,7 +997,7 @@ void HelloTriangle::draw() {
   presentInfo.waitSemaphoreCount = 1;
   presentInfo.pWaitSemaphores = signalSemaphores;
 
-  VkSwapchainKHR swap_chains[] = {swap_chain};
+  VkSwapchainKHR swap_chains[] = {swap_chain.chain};
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = swap_chains;
   presentInfo.pImageIndices = &image_index;

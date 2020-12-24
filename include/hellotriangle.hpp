@@ -4,6 +4,7 @@
 #include <ldevice.hpp>
 #include <pdevice.hpp>
 #include <support.hpp>
+#include <swapchain.hpp>
 #include <utils.hpp>
 
 using namespace vtuto;
@@ -38,16 +39,17 @@ public:
   vulkan_device<VkDevice> logical_dev;
 
   /** swapchain for handling frame rate*/
-  VkSwapchainKHR swap_chain;
+  // VkSwapchainKHR swap_chain;
+  swapchain swap_chain;
 
   /** images in swap chain */
-  std::vector<VkImage> swapchain_images;
+  // std::vector<VkImage> swapchain_images;
 
   /** swapchain image format*/
-  VkFormat swapchain_image_format;
+  // VkFormat swapchain_image_format;
 
   /** swapchain extent*/
-  VkExtent2D swapchain_extent;
+  // VkExtent2D swapchain_extent;
 
   /** swapchain image view */
   std::vector<VkImageView> swapchain_image_views;
@@ -239,7 +241,7 @@ number of indices for given device family.
 
   VkExtent2D chooseSwapExtent(
       const VkSurfaceCapabilitiesKHR &capabilities);
-  void createSwapChain();
+  // void createSwapChain();
   /**
     Query supported swap chain details.
 
@@ -276,7 +278,7 @@ number of indices for given device family.
   void createCommandPool();
   void createCommandBuffer();
   void createSyncObjects();
-  void cleanupSwapchain();
+  // void cleanupSwapchain();
   void recreateSwapchain();
   void draw();
 };
