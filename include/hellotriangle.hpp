@@ -1,6 +1,7 @@
 #pragma once
 #include <debug.hpp>
 #include <external.hpp>
+#include <imageview.hpp>
 #include <ldevice.hpp>
 #include <pdevice.hpp>
 #include <support.hpp>
@@ -52,7 +53,8 @@ public:
   // VkExtent2D swapchain_extent;
 
   /** swapchain image view */
-  std::vector<VkImageView> swapchain_image_views;
+  // std::vector<VkImageView> swapchain_image_views;
+  image_view swapchain_image_views;
 
   /** swap chain frame buffers*/
   std::vector<VkFramebuffer> swapchain_framebuffers;
@@ -270,7 +272,7 @@ number of indices for given device family.
    */
   bool checkDeviceExtensionSupport(VkPhysicalDevice pdev);
   void createLogicalDevice();
-  void createSwapChainImageViews();
+  // void createSwapChainImageViews();
   VkShaderModule
   createShaderModule(const std::vector<char> &shaderCode);
   void createGraphicsPipeline();
