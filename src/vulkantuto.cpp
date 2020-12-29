@@ -85,9 +85,7 @@ void HelloTriangle::initVulkan() {
   swap_chain = swapchain(physical_dev, logical_dev, window);
 
   // 6. create swap chain image views
-  swapchain_image_views =
-      image_view(swap_chain.simages,
-                 swap_chain.simage_format, logical_dev);
+  // swapchain_image_views =
 
   // 7. create render pass
   createRenderPass();
@@ -198,8 +196,7 @@ void HelloTriangle::cleanUp() {
   swap_chain.destroy(logical_dev, command_pool,
                      command_buffers,
                      swapchain_framebuffers, render_pass,
-                     graphics_pipeline, pipeline_layout,
-                     swapchain_image_views.views);
+                     graphics_pipeline, pipeline_layout);
 
   for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
     vkDestroySemaphore(logical_dev.device(),
@@ -642,13 +639,11 @@ void HelloTriangle::createGraphicsPipeline() {
                         nullptr);
 }
 void HelloTriangle::createFramebuffers() {
-  swapchain_framebuffers.resize(
-      swapchain_image_views.size());
-  for (std::size_t i = 0; i < swapchain_image_views.size();
-       i++) {
+  swapchain_framebuffers.resize(swap_chain.view_size());
+  for (std::size_t i = 0; i < swap_chain.view_size(); i++) {
     // vk image view per frame
     VkImageView image_attachments[] = {
-        swapchain_image_views[i]};
+        swap_chain.simage_views[i]};
     VkFramebufferCreateInfo framebufferInfo{};
     framebufferInfo.sType =
         VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -779,12 +774,8 @@ void HelloTriangle::recreateSwapchain() {
   swap_chain.destroy(logical_dev, command_pool,
                      command_buffers,
                      swapchain_framebuffers, render_pass,
-                     graphics_pipeline, pipeline_layout,
-                     swapchain_image_views.views);
+                     graphics_pipeline, pipeline_layout);
   swap_chain = swapchain(physical_dev, logical_dev, window);
-  swapchain_image_views =
-      image_view(swap_chain.simages,
-                 swap_chain.simage_format, logical_dev);
   createRenderPass();
   createGraphicsPipeline();
   createFramebuffers();

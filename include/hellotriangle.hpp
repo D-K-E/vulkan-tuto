@@ -37,7 +37,7 @@ public:
   swapchain swap_chain;
 
   /** swapchain image view */
-  image_view swapchain_image_views;
+  // image_view swapchain_image_views;
 
   /** swap chain frame buffers*/
   std::vector<VkFramebuffer> swapchain_framebuffers;

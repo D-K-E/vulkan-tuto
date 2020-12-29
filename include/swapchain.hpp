@@ -3,6 +3,7 @@
 
 #include <debug.hpp>
 #include <external.hpp>
+#include <imageview.hpp>
 #include <ldevice.hpp>
 #include <pdevice.hpp>
 #include <support.hpp>
@@ -25,6 +26,9 @@ public:
 
   /** swapchain extent*/
   VkExtent2D sextent;
+
+  /** swapchain image view */
+  image_view simage_views;
 
 public:
   swapchain() {}
@@ -114,6 +118,11 @@ public:
              "failed to set swapchain images");
     simage_format = surfaceFormat.format;
     sextent = extent;
+    set_image_view(logical_dev);
+  }
+  void set_image_view(vulkan_device<VkDevice> logical_dev) {
+    simage_views =
+        image_view(simages, simage_format, logical_dev);
   }
   VkSurfaceFormatKHR chooseSwapSurfaceFormat(
       const std::vector<VkSurfaceFormatKHR> &availables) {
@@ -161,6 +170,7 @@ public:
       return actual_extent;
     }
   }
+  std::size_t view_size() { return simage_views.size(); }
   void destroy(
       vulkan_device<VkDevice> &logical_dev,
       VkCommandPool &command_pool,
@@ -168,8 +178,7 @@ public:
       std::vector<VkFramebuffer> &swapchain_framebuffers,
       VkRenderPass &render_pass,
       VkPipeline &graphics_pipeline,
-      VkPipelineLayout &pipeline_layout,
-      std::vector<VkImageView> &swapchain_image_views) {
+      VkPipelineLayout &pipeline_layout) {
     //
     vkFreeCommandBuffers(
         logical_dev.device(), command_pool,
@@ -190,7 +199,7 @@ public:
     vkDestroyRenderPass(logical_dev.device(), render_pass,
                         nullptr);
     // 2. destroy swap chain image views
-    for (auto imview : swapchain_image_views) {
+    for (auto imview : simage_views.views) {
       vkDestroyImageView(logical_dev.device(), imview,
                          nullptr);
     }

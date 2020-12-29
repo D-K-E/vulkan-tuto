@@ -5,7 +5,6 @@
 #include <ldevice.hpp>
 #include <pdevice.hpp>
 #include <support.hpp>
-#include <swapchain.hpp>
 #include <utils.hpp>
 
 using namespace vtuto;
