@@ -108,4 +108,6 @@ struct SwapChainSupportDetails {
     return details;
   }
 };
+
+typedef unsigned int uint;
 }

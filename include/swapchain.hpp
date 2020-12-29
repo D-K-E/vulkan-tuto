@@ -28,7 +28,7 @@ public:
   VkExtent2D sextent;
 
   /** swapchain image view */
-  image_view simage_views;
+  image_views simage_views;
 
 public:
   swapchain() {}
@@ -118,11 +118,12 @@ public:
              "failed to set swapchain images");
     simage_format = surfaceFormat.format;
     sextent = extent;
-    set_image_view(logical_dev);
+    set_image_views(logical_dev);
   }
-  void set_image_view(vulkan_device<VkDevice> logical_dev) {
+  void
+  set_image_views(vulkan_device<VkDevice> logical_dev) {
     simage_views =
-        image_view(simages, simage_format, logical_dev);
+        image_views(simages, simage_format, logical_dev);
   }
   VkSurfaceFormatKHR chooseSwapSurfaceFormat(
       const std::vector<VkSurfaceFormatKHR> &availables) {
@@ -199,10 +200,7 @@ public:
     vkDestroyRenderPass(logical_dev.device(), render_pass,
                         nullptr);
     // 2. destroy swap chain image views
-    for (auto imview : simage_views.views) {
-      vkDestroyImageView(logical_dev.device(), imview,
-                         nullptr);
-    }
+    simage_views.destroy(logical_dev);
     // 3. destroy swap chain
     vkDestroySwapchainKHR(logical_dev.device(), chain,
                           nullptr);

@@ -84,9 +84,6 @@ void HelloTriangle::initVulkan() {
   // 5. create swap chain
   swap_chain = swapchain(physical_dev, logical_dev, window);
 
-  // 6. create swap chain image views
-  // swapchain_image_views =
-
   // 7. create render pass
   createRenderPass();
 
