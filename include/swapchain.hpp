@@ -3,6 +3,7 @@
 
 #include <debug.hpp>
 #include <external.hpp>
+#include <framebuffer.hpp>
 #include <imageview.hpp>
 #include <ldevice.hpp>
 #include <pdevice.hpp>
@@ -172,24 +173,24 @@ public:
     }
   }
   std::size_t view_size() { return simage_views.size(); }
-  void destroy(
-      vulkan_device<VkDevice> &logical_dev,
-      VkCommandPool &command_pool,
-      std::vector<VkCommandBuffer> &command_buffers,
-      std::vector<VkFramebuffer> &swapchain_framebuffers,
-      VkRenderPass &render_pass,
-      VkPipeline &graphics_pipeline,
-      VkPipelineLayout &pipeline_layout) {
+  void
+  destroy(vulkan_device<VkDevice> &logical_dev,
+          VkCommandPool &command_pool,
+          std::vector<VkCommandBuffer> &command_buffers,
+          std::vector<vulkan_buffer<VkFramebuffer>>
+              &swapchain_framebuffers,
+          VkRenderPass &render_pass,
+          VkPipeline &graphics_pipeline,
+          VkPipelineLayout &pipeline_layout) {
     //
     vkFreeCommandBuffers(
         logical_dev.device(), command_pool,
         static_cast<uint32_t>(command_buffers.size()),
         command_buffers.data());
 
-    for (auto framebuffer : swapchain_framebuffers) {
+    for (auto &framebuffer : swapchain_framebuffers) {
       //
-      vkDestroyFramebuffer(logical_dev.device(),
-                           framebuffer, nullptr);
+      framebuffer.destroy(logical_dev);
     }
     vkDestroyPipeline(logical_dev.device(),
                       graphics_pipeline, nullptr);

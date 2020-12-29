@@ -133,5 +133,13 @@ public:
   VkImageView operator[](std::size_t i) {
     return views[i].view;
   }
+  std::vector<VkImageView> data() {
+    std::vector<VkImageView> vs;
+    vs.resize(views.size());
+    for (uint i = 0; i < views.size(); i++) {
+      vs[i] = views[i].view;
+    }
+    return vs;
+  }
 };
 }

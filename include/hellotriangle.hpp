@@ -1,6 +1,7 @@
 #pragma once
 #include <debug.hpp>
 #include <external.hpp>
+#include <framebuffer.hpp>
 #include <imageview.hpp>
 #include <ldevice.hpp>
 #include <pdevice.hpp>
@@ -37,7 +38,9 @@ public:
   swapchain swap_chain;
 
   /** swap chain frame buffers*/
-  std::vector<VkFramebuffer> swapchain_framebuffers;
+  // std::vector<VkFramebuffer> swapchain_framebuffers;
+  std::vector<vulkan_buffer<VkFramebuffer>>
+      swapchain_framebuffers;
 
   /** render pass */
   VkRenderPass render_pass;

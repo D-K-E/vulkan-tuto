@@ -639,24 +639,13 @@ void HelloTriangle::createFramebuffers() {
   swapchain_framebuffers.resize(swap_chain.view_size());
   for (std::size_t i = 0; i < swap_chain.view_size(); i++) {
     // vk image view per frame
-    VkImageView image_attachments[] = {
+    std::vector<VkImageView> image_attachments = {
         swap_chain.simage_views[i]};
-    VkFramebufferCreateInfo framebufferInfo{};
-    framebufferInfo.sType =
-        VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass = render_pass;
-    framebufferInfo.attachmentCount = 1;
-    framebufferInfo.pAttachments = image_attachments;
-    framebufferInfo.width = swap_chain.sextent.width;
-    framebufferInfo.height = swap_chain.sextent.height;
-    framebufferInfo.layers = 1;
+    auto vbuffer = vulkan_buffer<VkFramebuffer>(
+        swap_chain.sextent.width, swap_chain.sextent.height,
+        1, render_pass, image_attachments, logical_dev);
+    swapchain_framebuffers[i] = vbuffer;
     //
-    CHECK_VK(
-        vkCreateFramebuffer(logical_dev.device(),
-                            &framebufferInfo, nullptr,
-                            &swapchain_framebuffers[i]),
-        "failed to create framebuffer for image view: " +
-            std::to_string(i));
   }
 }
 void HelloTriangle::createCommandPool() {
@@ -706,7 +695,8 @@ void HelloTriangle::createCommandBuffer() {
     renderPassInfo.sType =
         VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = render_pass;
-    renderPassInfo.framebuffer = swapchain_framebuffers[i];
+    renderPassInfo.framebuffer =
+        swapchain_framebuffers[i].buffer;
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = swap_chain.sextent;
 
