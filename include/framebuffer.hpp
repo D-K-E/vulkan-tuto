@@ -1,6 +1,5 @@
 // vulkan frame buffer object
 #pragma once
-#include <cstdint>
 #include <external.hpp>
 #include <imageview.hpp>
 #include <support.hpp>

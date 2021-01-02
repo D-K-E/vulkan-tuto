@@ -1,4 +1,5 @@
 #pragma once
+#include <commandbuffer.hpp>
 #include <debug.hpp>
 #include <external.hpp>
 #include <framebuffer.hpp>
@@ -38,7 +39,6 @@ public:
   swapchain swap_chain;
 
   /** swap chain frame buffers*/
-  // std::vector<VkFramebuffer> swapchain_framebuffers;
   std::vector<vulkan_buffer<VkFramebuffer>>
       swapchain_framebuffers;
 
@@ -52,8 +52,9 @@ public:
   VkPipeline graphics_pipeline;
 
   /** command pool for command buffer*/
-  VkCommandPool command_pool;
-  std::vector<VkCommandBuffer> command_buffers;
+  vk_command_pool command_pool;
+  // std::vector<VkCommandBuffer> command_buffers;
+  vulkan_buffers<VkCommandBuffer> cmd_buffers;
 
   /** vk semaphore to hold available and rendered images */
   std::vector<VkSemaphore> image_available_semaphores;
@@ -259,7 +260,7 @@ number of indices for given device family.
   void createGraphicsPipeline();
   void createFramebuffers();
   void createCommandPool();
-  void createCommandBuffer();
+  void createCommandBuffers();
   void createSyncObjects();
   void recreateSwapchain();
   void draw();

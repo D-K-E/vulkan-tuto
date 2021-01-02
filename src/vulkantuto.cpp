@@ -94,10 +94,11 @@ void HelloTriangle::initVulkan() {
   createFramebuffers();
 
   // 10. create command pool
-  createCommandPool();
+  // createCommandPool();
+  command_pool = vk_command_pool(physical_dev, logical_dev);
 
   // 11. create command buffer
-  createCommandBuffer();
+  createCommandBuffers();
 
   // 12. create sync objects: semaphores, fences etc
   createSyncObjects();
@@ -190,8 +191,8 @@ void HelloTriangle::renderLoop() {
  */
 void HelloTriangle::cleanUp() {
   //
-  swap_chain.destroy(logical_dev, command_pool,
-                     command_buffers,
+  auto v = cmd_buffers.to_vec();
+  swap_chain.destroy(logical_dev, command_pool.pool, v,
                      swapchain_framebuffers, render_pass,
                      graphics_pipeline, pipeline_layout);
 
@@ -205,8 +206,8 @@ void HelloTriangle::cleanUp() {
     vkDestroyFence(logical_dev.device(), current_fences[i],
                    nullptr);
   }
-  vkDestroyCommandPool(logical_dev.device(), command_pool,
-                       nullptr);
+  command_pool.destroy(logical_dev);
+
   // 4. destroy logical device
   logical_dev.destroy();
   // 5. destroy debugging utils
@@ -648,74 +649,30 @@ void HelloTriangle::createFramebuffers() {
     //
   }
 }
-void HelloTriangle::createCommandPool() {
-  QueuFamilyIndices qfi =
-      QueuFamilyIndices::find_family_indices(
-          physical_dev.pdevice, physical_dev.surface);
 
-  VkCommandPoolCreateInfo commandPoolInfo{};
-  commandPoolInfo.sType =
-      VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  commandPoolInfo.queueFamilyIndex =
-      qfi.graphics_family.value();
-  CHECK_VK(vkCreateCommandPool(logical_dev.device(),
-                               &commandPoolInfo, nullptr,
-                               &command_pool),
-           "failed to create command pool");
-}
-void HelloTriangle::createCommandBuffer() {
-  command_buffers.resize(swapchain_framebuffers.size());
+void HelloTriangle::createCommandBuffers() {
+  cmd_buffers.resize(swapchain_framebuffers.size());
 
-  //
   VkCommandBufferAllocateInfo comAllocInfo{};
   comAllocInfo.sType =
       VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  comAllocInfo.commandPool = command_pool;
+  comAllocInfo.commandPool = command_pool.pool;
   comAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   comAllocInfo.commandBufferCount =
-      static_cast<uint32_t>(command_buffers.size());
+      static_cast<uint32_t>(cmd_buffers.size());
   //
   CHECK_VK(
       vkAllocateCommandBuffers(logical_dev.device(),
                                &comAllocInfo,
-                               command_buffers.data()),
+                               cmd_buffers.data()),
       "failed allocate for registering command buffers");
 
   //
-  for (std::size_t i = 0; i < command_buffers.size(); i++) {
+  for (std::size_t i = 0; i < cmd_buffers.size(); i++) {
     //
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType =
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    CHECK_VK(vkBeginCommandBuffer(command_buffers[i],
-                                  &beginInfo),
-             "failed to begin recording commands");
-
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType =
-        VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = render_pass;
-    renderPassInfo.framebuffer =
-        swapchain_framebuffers[i].buffer;
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = swap_chain.sextent;
-
-    //
-    VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
-
-    //
-    vkCmdBeginRenderPass(command_buffers[i],
-                         &renderPassInfo,
-                         VK_SUBPASS_CONTENTS_INLINE);
-    vkCmdBindPipeline(command_buffers[i],
-                      VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      graphics_pipeline);
-    vkCmdDraw(command_buffers[i], 3, 1, 0, 0);
-    vkCmdEndRenderPass(command_buffers[i]);
-    CHECK_VK(vkEndCommandBuffer(command_buffers[i]),
-             "failed to register command buffer");
+    auto buffer = vulkan_buffer<VkCommandBuffer>(
+        cmd_buffers.get(i), swapchain_framebuffers[i],
+        render_pass, swap_chain.sextent, graphics_pipeline);
   }
 }
 void HelloTriangle::createSyncObjects() {
@@ -758,15 +715,15 @@ void HelloTriangle::recreateSwapchain() {
     glfwWaitEvents();
   }
   vkDeviceWaitIdle(logical_dev.device());
-  swap_chain.destroy(logical_dev, command_pool,
-                     command_buffers,
+  auto vs = cmd_buffers.to_vec();
+  swap_chain.destroy(logical_dev, command_pool.pool, vs,
                      swapchain_framebuffers, render_pass,
                      graphics_pipeline, pipeline_layout);
   swap_chain = swapchain(physical_dev, logical_dev, window);
   createRenderPass();
   createGraphicsPipeline();
   createFramebuffers();
-  createCommandBuffer();
+  createCommandBuffers();
 }
 void HelloTriangle::draw() {
   vkWaitForFences(logical_dev.device(), 1,
@@ -809,8 +766,8 @@ void HelloTriangle::draw() {
   submitInfo.pWaitDstStageMask = waitStages;
 
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers =
-      &command_buffers[image_index];
+  auto v = cmd_buffers.get(image_index);
+  submitInfo.pCommandBuffers = &v;
 
   VkSemaphore signalSemaphores[] = {
       render_finished_semaphores[current_frame]};
