@@ -4,8 +4,10 @@
 //
 #include <GLFW/glfw3.h>
 //
+#include <glm/glm.hpp>
 
 //
+#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>

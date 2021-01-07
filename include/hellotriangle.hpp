@@ -8,7 +8,9 @@
 #include <pdevice.hpp>
 #include <support.hpp>
 #include <swapchain.hpp>
+#include <triangle.hpp>
 #include <utils.hpp>
+#include <vertex.hpp>
 
 using namespace vtuto;
 
@@ -53,8 +55,11 @@ public:
 
   /** command pool for command buffer*/
   vk_command_pool command_pool;
-  // std::vector<VkCommandBuffer> command_buffers;
   vulkan_buffers<VkCommandBuffer> cmd_buffers;
+
+  /** vertex buffer*/
+  VkBuffer vertex_buffer;
+  VkDeviceMemory vertex_buffer_memory;
 
   /** vk semaphore to hold available and rendered images */
   std::vector<VkSemaphore> image_available_semaphores;
@@ -259,6 +264,8 @@ number of indices for given device family.
   createShaderModule(const std::vector<char> &shaderCode);
   void createGraphicsPipeline();
   void createFramebuffers();
+  uint32_t findMemoryType(uint32_t filter, VkMemoryPropertyFlags flags);
+  void createVertexBuffer();
   void createCommandPool();
   void createCommandBuffers();
   void createSyncObjects();

@@ -29,3 +29,12 @@ read_shader_file(const std::string &fpath) {
       throw std::runtime_error(s);                         \
     }                                                      \
   } while (0)
+
+template <typename T>
+void print_vector(const std::vector<T> &vs) {
+  std::cout << std::endl;
+  for (const auto &v : vs) {
+    std::cout << v << ",";
+  }
+  std::cout << std::endl;
+}

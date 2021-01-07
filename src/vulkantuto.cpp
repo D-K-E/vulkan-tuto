@@ -4,7 +4,9 @@
 #include <hellotriangle.hpp>
 #include <ldevice.hpp>
 #include <pdevice.hpp>
+#include <stdexcept>
 #include <support.hpp>
+#include <triangle.hpp>
 #include <utils.hpp>
 //
 using namespace vtuto;
@@ -97,10 +99,13 @@ void HelloTriangle::initVulkan() {
   // createCommandPool();
   command_pool = vk_command_pool(physical_dev, logical_dev);
 
-  // 11. create command buffer
+  // 11. create vertex buffer
+  createVertexBuffer();
+
+  // 12. create command buffer
   createCommandBuffers();
 
-  // 12. create sync objects: semaphores, fences etc
+  // 13. create sync objects: semaphores, fences etc
   createSyncObjects();
 }
 /**
@@ -195,6 +200,10 @@ void HelloTriangle::cleanUp() {
   swap_chain.destroy(logical_dev, command_pool.pool, v,
                      swapchain_framebuffers, render_pass,
                      graphics_pipeline, pipeline_layout);
+  vkDestroyBuffer(logical_dev.device(), vertex_buffer,
+                  nullptr);
+  vkFreeMemory(logical_dev.device(), vertex_buffer_memory,
+               nullptr);
 
   for (std::size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
     vkDestroySemaphore(logical_dev.device(),
@@ -521,8 +530,14 @@ void HelloTriangle::createGraphicsPipeline() {
   VkPipelineVertexInputStateCreateInfo vxInputInfo{};
   vxInputInfo.sType =
       VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vxInputInfo.vertexBindingDescriptionCount = 0;
-  vxInputInfo.vertexAttributeDescriptionCount = 0;
+  auto bindingDescr = Vertex::getBindingDescription();
+  auto attrDescr = Vertex::getAttributeDescriptions();
+  vxInputInfo.vertexBindingDescriptionCount = 1;
+  vxInputInfo.vertexAttributeDescriptionCount =
+      static_cast<uint32_t>(attrDescr.size());
+  vxInputInfo.pVertexBindingDescriptions = &bindingDescr;
+  vxInputInfo.pVertexAttributeDescriptions =
+      attrDescr.data();
 
   // input assembly pipeline creation
   VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -649,7 +664,63 @@ void HelloTriangle::createFramebuffers() {
     //
   }
 }
+void HelloTriangle::createVertexBuffer() {
+  // 1. Buffer info creation
+  VkBufferCreateInfo vinfo{};
+  vinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  vinfo.size = triangle.size();
+  vinfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  vinfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  //
+  CHECK_VK(vkCreateBuffer(logical_dev.device(), &vinfo,
+                          nullptr, &vertex_buffer),
+           "vertex buffer creation failed");
+  // 2. Memory requirement creation
+  VkMemoryRequirements memReq;
+  vkGetBufferMemoryRequirements(logical_dev.device(),
+                                vertex_buffer, &memReq);
+  // 3. allocating necessary memory
+  VkMemoryAllocateInfo allocInfo{};
+  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocInfo.allocationSize = memReq.size;
+  allocInfo.memoryTypeIndex = findMemoryType(
+      memReq.memoryTypeBits,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
+  CHECK_VK(vkAllocateMemory(logical_dev.device(),
+                            &allocInfo, nullptr,
+                            &vertex_buffer_memory),
+           "failed to allocate memory from logical device");
+
+  // 4. map host to device memory
+  vkBindBufferMemory(logical_dev.device(), vertex_buffer,
+                     vertex_buffer_memory, 0);
+
+  void *data;
+  vkMapMemory(logical_dev.device(), vertex_buffer_memory, 0,
+              vinfo.size, 0, &data);
+  auto vs = triangle.to_vector();
+  memcpy(data, vs.data(), static_cast<size_t>(vinfo.size));
+  vkUnmapMemory(logical_dev.device(), vertex_buffer_memory);
+}
+uint32_t
+HelloTriangle::findMemoryType(uint32_t filter,
+                              VkMemoryPropertyFlags flags) {
+  //
+  VkPhysicalDeviceMemoryProperties memProps;
+  vkGetPhysicalDeviceMemoryProperties(physical_dev.device(),
+                                      &memProps);
+  for (uint32_t i = 0; i < memProps.memoryTypeCount; i++) {
+    if ((filter & (1 << i)) &&
+        (memProps.memoryTypes[i].propertyFlags & flags) ==
+            flags) {
+      return i;
+    }
+  }
+  throw std::runtime_error(
+      "could not find a suitable memory type");
+}
 void HelloTriangle::createCommandBuffers() {
   cmd_buffers.resize(swapchain_framebuffers.size());
 
@@ -672,7 +743,8 @@ void HelloTriangle::createCommandBuffers() {
     //
     auto buffer = vulkan_buffer<VkCommandBuffer>(
         cmd_buffers.get(i), swapchain_framebuffers[i],
-        render_pass, swap_chain.sextent, graphics_pipeline);
+        render_pass, swap_chain.sextent, graphics_pipeline,
+        vertex_buffer, triangle);
   }
 }
 void HelloTriangle::createSyncObjects() {
