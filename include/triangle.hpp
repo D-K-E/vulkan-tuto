@@ -1,7 +1,6 @@
 #pragma once
 // triangle object
 #include <external.hpp>
-#include <stdexcept>
 #include <vertex.hpp>
 
 struct Triangle {
@@ -39,11 +38,14 @@ struct Triangle {
     return vs;
   }
   std::size_t size() const { return sizeof(Vertex) * 3; }
+  VkDeviceSize dsize() const {
+    return static_cast<VkDeviceSize>(size());
+  }
   Vertex *data() const { return to_vector().data(); }
 };
 const std::vector<Vertex> vs = {
-    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{0.0f, -0.5f}, {1.0f, 1.0f, 0.5f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.5f}},
     {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
 const Triangle triangle = Triangle(vs);

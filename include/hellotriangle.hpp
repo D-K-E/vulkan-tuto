@@ -264,8 +264,16 @@ number of indices for given device family.
   createShaderModule(const std::vector<char> &shaderCode);
   void createGraphicsPipeline();
   void createFramebuffers();
-  uint32_t findMemoryType(uint32_t filter, VkMemoryPropertyFlags flags);
+  uint32_t findMemoryType(uint32_t filter,
+                          VkMemoryPropertyFlags flags);
   void createVertexBuffer();
+  void copyBuffer(VkBuffer src, VkBuffer dst,
+                  VkDeviceSize size);
+  void createBuffer(VkDeviceSize size,
+                    VkBufferUsageFlags usage,
+                    VkMemoryPropertyFlags mem_flags,
+                    VkBuffer &buffer,
+                    VkDeviceMemory &buffer_memory);
   void createCommandPool();
   void createCommandBuffers();
   void createSyncObjects();

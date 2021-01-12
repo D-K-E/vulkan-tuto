@@ -666,43 +666,119 @@ void HelloTriangle::createFramebuffers() {
 }
 void HelloTriangle::createVertexBuffer() {
   // 1. Buffer info creation
-  VkBufferCreateInfo vinfo{};
-  vinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  vinfo.size = triangle.size();
-  vinfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-  vinfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  auto device_size = triangle.size();
+  VkDeviceSize vk_device_size = triangle.dsize();
+  auto mem_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+  // 2. staging buffer creation
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_memory;
+  auto stage_usage_flag = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+  // create staging buffer
+  createBuffer(device_size, stage_usage_flag, mem_flags,
+               staging_buffer, staging_memory);
+
+  void *data;
+  vkMapMemory(logical_dev.device(), staging_memory, 0,
+              device_size, 0, &data);
+  memcpy(data, triangle.data(),
+         static_cast<size_t>(device_size));
+  vkUnmapMemory(logical_dev.device(), staging_memory);
+
+  // 3. declare vertex buffer
+  auto vertex_usage_flag =
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+  auto vertex_mem_flag =
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+  createBuffer(device_size, vertex_usage_flag,
+               vertex_mem_flag, vertex_buffer,
+               vertex_buffer_memory);
+  copyBuffer(staging_buffer, vertex_buffer, vk_device_size);
+  vkDestroyBuffer(logical_dev.device(), staging_buffer,
+                  nullptr);
+  vkFreeMemory(logical_dev.device(), staging_memory,
+               nullptr);
+}
+void HelloTriangle::copyBuffer(VkBuffer src, VkBuffer dst,
+                               VkDeviceSize size) {
   //
-  CHECK_VK(vkCreateBuffer(logical_dev.device(), &vinfo,
-                          nullptr, &vertex_buffer),
-           "vertex buffer creation failed");
-  // 2. Memory requirement creation
+  VkCommandBufferAllocateInfo allocInfo{};
+  allocInfo.sType =
+      VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocInfo.commandPool = command_pool.pool;
+  allocInfo.commandBufferCount = 1;
+
+  VkCommandBuffer commandBuffer;
+  vkAllocateCommandBuffers(logical_dev.device(), &allocInfo,
+                           &commandBuffer);
+
+  VkCommandBufferBeginInfo binfo{};
+  binfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  binfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+  // start recording commands
+
+  vkBeginCommandBuffer(commandBuffer, &binfo);
+  VkBufferCopy copyRegion{};
+  copyRegion.size = size;
+  vkCmdCopyBuffer(commandBuffer, src, dst, 1, &copyRegion);
+  vkEndCommandBuffer(commandBuffer);
+
+  // end recording commands
+
+  VkSubmitInfo sinfo{};
+  sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  sinfo.commandBufferCount = 1;
+  sinfo.pCommandBuffers = &commandBuffer;
+
+  vkQueueSubmit(logical_dev.graphics_queue, 1, &sinfo,
+                VK_NULL_HANDLE);
+  vkQueueWaitIdle(logical_dev.graphics_queue);
+  vkFreeCommandBuffers(logical_dev.device(),
+                       command_pool.pool, 1,
+                       &commandBuffer);
+}
+/**
+  abstract buffer creation mechanism
+ */
+void HelloTriangle::createBuffer(
+    VkDeviceSize size, VkBufferUsageFlags usage,
+    VkMemoryPropertyFlags mem_flags, VkBuffer &buffer,
+    VkDeviceMemory &buffer_memory) {
+  // 1. create buffer info
+  VkBufferCreateInfo bufferInfo{};
+  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  bufferInfo.size = size;
+  bufferInfo.usage = usage;
+  bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  CHECK_VK(vkCreateBuffer(logical_dev.device(), &bufferInfo,
+                          nullptr, &buffer),
+           "buffer creation failed");
+
+  // 2. query memory requirements
   VkMemoryRequirements memReq;
   vkGetBufferMemoryRequirements(logical_dev.device(),
-                                vertex_buffer, &memReq);
-  // 3. allocating necessary memory
+                                buffer, &memReq);
+
+  // 3. allocate required memory
   VkMemoryAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memReq.size;
-  allocInfo.memoryTypeIndex = findMemoryType(
-      memReq.memoryTypeBits,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  allocInfo.memoryTypeIndex =
+      findMemoryType(memReq.memoryTypeBits, mem_flags);
 
   CHECK_VK(vkAllocateMemory(logical_dev.device(),
                             &allocInfo, nullptr,
-                            &vertex_buffer_memory),
+                            &buffer_memory),
            "failed to allocate memory from logical device");
 
   // 4. map host to device memory
-  vkBindBufferMemory(logical_dev.device(), vertex_buffer,
-                     vertex_buffer_memory, 0);
-
-  void *data;
-  vkMapMemory(logical_dev.device(), vertex_buffer_memory, 0,
-              vinfo.size, 0, &data);
-  auto vs = triangle.to_vector();
-  memcpy(data, vs.data(), static_cast<size_t>(vinfo.size));
-  vkUnmapMemory(logical_dev.device(), vertex_buffer_memory);
+  vkBindBufferMemory(logical_dev.device(), buffer,
+                     buffer_memory, 0);
 }
 uint32_t
 HelloTriangle::findMemoryType(uint32_t filter,
