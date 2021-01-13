@@ -44,8 +44,17 @@ struct Triangle {
   Vertex *data() const { return to_vector().data(); }
 };
 const std::vector<Vertex> vs = {
-    {{0.0f, -0.5f}, {1.0f, 1.0f, 0.5f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.5f}},
+    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
     {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
 const Triangle triangle = Triangle(vs);
+
+const std::vector<Vertex> square_vs = {
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+
+const std::vector<uint16_t> square_indices = {0, 1, 2,
+                                              2, 3, 0};

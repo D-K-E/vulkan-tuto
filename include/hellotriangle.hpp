@@ -61,6 +61,10 @@ public:
   VkBuffer vertex_buffer;
   VkDeviceMemory vertex_buffer_memory;
 
+  /** index buffer*/
+  VkBuffer index_buffer;
+  VkDeviceMemory index_buffer_memory;
+
   /** vk semaphore to hold available and rendered images */
   std::vector<VkSemaphore> image_available_semaphores;
   std::vector<VkSemaphore> render_finished_semaphores;
@@ -267,6 +271,7 @@ number of indices for given device family.
   uint32_t findMemoryType(uint32_t filter,
                           VkMemoryPropertyFlags flags);
   void createVertexBuffer();
+  void createIndexBuffer();
   void copyBuffer(VkBuffer src, VkBuffer dst,
                   VkDeviceSize size);
   void createBuffer(VkDeviceSize size,

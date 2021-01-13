@@ -102,10 +102,13 @@ void HelloTriangle::initVulkan() {
   // 11. create vertex buffer
   createVertexBuffer();
 
-  // 12. create command buffer
+  // 12. create index buffer
+  createIndexBuffer();
+
+  // 13. create command buffer
   createCommandBuffers();
 
-  // 13. create sync objects: semaphores, fences etc
+  // 14. create sync objects: semaphores, fences etc
   createSyncObjects();
 }
 /**
@@ -200,6 +203,12 @@ void HelloTriangle::cleanUp() {
   swap_chain.destroy(logical_dev, command_pool.pool, v,
                      swapchain_framebuffers, render_pass,
                      graphics_pipeline, pipeline_layout);
+
+  vkDestroyBuffer(logical_dev.device(), index_buffer,
+                  nullptr);
+  vkFreeMemory(logical_dev.device(), index_buffer_memory,
+               nullptr);
+
   vkDestroyBuffer(logical_dev.device(), vertex_buffer,
                   nullptr);
   vkFreeMemory(logical_dev.device(), vertex_buffer_memory,
@@ -665,13 +674,13 @@ void HelloTriangle::createFramebuffers() {
   }
 }
 void HelloTriangle::createVertexBuffer() {
-  // 1. Buffer info creation
-  auto device_size = triangle.size();
-  VkDeviceSize vk_device_size = triangle.dsize();
+  // 1. buffer related info
+  auto device_size = square_vs.size() * sizeof(Vertex);
+  VkDeviceSize vk_device_size = device_size;
   auto mem_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
-  // 2. staging buffer creation
+  // 2. creating stage buffer
   VkBuffer staging_buffer;
   VkDeviceMemory staging_memory;
   auto stage_usage_flag = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -683,7 +692,7 @@ void HelloTriangle::createVertexBuffer() {
   void *data;
   vkMapMemory(logical_dev.device(), staging_memory, 0,
               device_size, 0, &data);
-  memcpy(data, triangle.data(),
+  memcpy(data, square_vs.data(),
          static_cast<size_t>(device_size));
   vkUnmapMemory(logical_dev.device(), staging_memory);
 
@@ -693,10 +702,49 @@ void HelloTriangle::createVertexBuffer() {
       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
   auto vertex_mem_flag =
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
   createBuffer(device_size, vertex_usage_flag,
                vertex_mem_flag, vertex_buffer,
                vertex_buffer_memory);
-  copyBuffer(staging_buffer, vertex_buffer, vk_device_size);
+
+  copyBuffer(staging_buffer, vertex_buffer, device_size);
+
+  vkDestroyBuffer(logical_dev.device(), staging_buffer,
+                  nullptr);
+  vkFreeMemory(logical_dev.device(), staging_memory,
+               nullptr);
+}
+void HelloTriangle::createIndexBuffer() {
+  // 1. buffer related info
+  VkDeviceSize size =
+      square_indices.size() * sizeof(square_indices[0]);
+
+  VkBuffer staging_buffer;
+  VkDeviceMemory staging_memory;
+  auto stage_usage_flag = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+  auto mem_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+  // create staging buffer
+  createBuffer(size, stage_usage_flag, mem_flags,
+               staging_buffer, staging_memory);
+  void *data;
+  vkMapMemory(logical_dev.device(), staging_memory, 0, size,
+              0, &data);
+  memcpy(data, square_indices.data(),
+         static_cast<size_t>(size));
+  vkUnmapMemory(logical_dev.device(), staging_memory);
+
+  // 3. declare index buffer
+  auto index_usage_flag = VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                          VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+  auto index_mem_flag = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+  createBuffer(size, index_usage_flag, index_mem_flag,
+               index_buffer, index_buffer_memory);
+
+  copyBuffer(staging_buffer, index_buffer, size);
   vkDestroyBuffer(logical_dev.device(), staging_buffer,
                   nullptr);
   vkFreeMemory(logical_dev.device(), staging_memory,
@@ -820,7 +868,7 @@ void HelloTriangle::createCommandBuffers() {
     auto buffer = vulkan_buffer<VkCommandBuffer>(
         cmd_buffers.get(i), swapchain_framebuffers[i],
         render_pass, swap_chain.sextent, graphics_pipeline,
-        vertex_buffer, triangle);
+        vertex_buffer, index_buffer, square_indices);
   }
 }
 void HelloTriangle::createSyncObjects() {

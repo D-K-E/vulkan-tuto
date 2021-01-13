@@ -58,7 +58,8 @@ public:
       VkRenderPass &render_pass,
       VkExtent2D swap_chain_extent,
       VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
-      Triangle triangle, int32_t render_offset_x = 0,
+      VkBuffer index_buffer, std::vector<uint16_t> indices,
+      int32_t render_offset_x = 0,
       int32_t render_offset_y = 0,
       VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f},
       uint clearValueCount = 1,
@@ -71,14 +72,14 @@ public:
       uint32_t first_vertex_index = 0,
       uint32_t first_instance_index = 0)
       : buffer(loc) {
-    mk_cmd_buffer(sc_framebuffer, render_pass,
-                  swap_chain_extent, graphics_pipeline,
-                  vertex_buffer, triangle, render_offset_x,
-                  render_offset_y, clearColor,
-                  clearValueCount, subpass_contents,
-                  graphics_pass_bind_point, vertex_count,
-                  instance_count, first_vertex_index,
-                  first_instance_index);
+    mk_cmd_buffer(
+        sc_framebuffer, render_pass, swap_chain_extent,
+        graphics_pipeline, vertex_buffer, index_buffer,
+        indices, render_offset_x, render_offset_y,
+        clearColor, clearValueCount, subpass_contents,
+        graphics_pass_bind_point, vertex_count,
+        instance_count, first_vertex_index,
+        first_instance_index);
   }
   vulkan_buffer(
       VkCommandBuffer loc,
@@ -86,7 +87,8 @@ public:
       VkRenderPass &render_pass,
       VkExtent2D swap_chain_extent,
       VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
-      Triangle triangle, VkCommandBufferBeginInfo beginInfo,
+      VkBuffer index_buffer, std::vector<uint16_t> indices,
+      VkCommandBufferBeginInfo beginInfo,
       VkRenderPassBeginInfo renderPassInfo,
       VkDrawInfo drawInfo,
       VkSubpassContents subpass_contents =
@@ -95,18 +97,19 @@ public:
           VK_PIPELINE_BIND_POINT_GRAPHICS)
       : buffer(loc) {
     //
-    mk_cmd_buffer(
-        sc_framebuffer, render_pass, swap_chain_extent,
-        graphics_pipeline, vertex_buffer, triangle,
-        beginInfo, renderPassInfo, drawInfo,
-        subpass_contents, graphics_pass_bind_point);
+    // mk_cmd_buffer(
+    //    sc_framebuffer, render_pass, swap_chain_extent,
+    //    graphics_pipeline, vertex_buffer, index_buffer,
+    //    indices, beginInfo, renderPassInfo, drawInfo,
+    //    subpass_contents, graphics_pass_bind_point);
   }
   void mk_cmd_buffer(
       vulkan_buffer<VkFramebuffer> &sc_framebuffer,
       VkRenderPass &render_pass,
       VkExtent2D swap_chain_extent,
       VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
-      Triangle triangle, int32_t render_offset_x = 0,
+      VkBuffer index_buffer, std::vector<uint16_t> indices,
+      int32_t render_offset_x = 0,
       int32_t render_offset_y = 0,
       VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f},
       uint clearValueCount = 1,
@@ -147,16 +150,20 @@ public:
                       graphics_pipeline);
 
     // 5. bind vertex buffer to command buffer
-    auto vs = triangle.to_vector();
     VkBuffer vertex_buffers[] = {vertex_buffer};
     VkDeviceSize vertex_offsets[] = {0};
     vkCmdBindVertexBuffers(buffer, 0, 1, vertex_buffers,
                            vertex_offsets);
+    // 6. bind index buffer to command buffer
+    vkCmdBindIndexBuffer(buffer, index_buffer, 0,
+                         VK_INDEX_TYPE_UINT16);
 
-    // 5. draw given command buffer
-    vkCmdDraw(buffer, static_cast<uint32_t>(vs.size()),
-              instance_count, first_vertex_index,
-              first_instance_index);
+    // 7. draw given command buffer with indices
+    vkCmdDrawIndexed(buffer,
+                     static_cast<uint32_t>(indices.size()),
+                     instance_count, first_vertex_index,
+                     first_instance_index, 0);
+
     vkCmdEndRenderPass(buffer);
     CHECK_VK(vkEndCommandBuffer(buffer),
              "failed to register command buffer");
@@ -166,7 +173,8 @@ public:
       VkRenderPass &render_pass,
       VkExtent2D swap_chain_extent,
       VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
-      Triangle triangle, VkCommandBufferBeginInfo beginInfo,
+      std::vector<uint16_t> indices,
+      VkCommandBufferBeginInfo beginInfo,
       VkRenderPassBeginInfo renderPassInfo,
       VkDrawInfo drawInfo,
       VkSubpassContents subpass_contents =
