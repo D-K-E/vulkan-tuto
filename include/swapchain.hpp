@@ -173,15 +173,18 @@ public:
     }
   }
   std::size_t view_size() { return simage_views.size(); }
-  void
-  destroy(vulkan_device<VkDevice> &logical_dev,
-          VkCommandPool &command_pool,
-          std::vector<VkCommandBuffer> &command_buffers,
-          std::vector<vulkan_buffer<VkFramebuffer>>
-              &swapchain_framebuffers,
-          VkRenderPass &render_pass,
-          VkPipeline &graphics_pipeline,
-          VkPipelineLayout &pipeline_layout) {
+  void destroy(
+      vulkan_device<VkDevice> &logical_dev,
+      VkCommandPool &command_pool,
+      std::vector<VkCommandBuffer> &command_buffers,
+      std::vector<vulkan_buffer<VkFramebuffer>>
+          &swapchain_framebuffers,
+      VkRenderPass &render_pass,
+      VkPipeline &graphics_pipeline,
+      VkPipelineLayout &pipeline_layout,
+      std::vector<VkBuffer> &uniform_buffers,
+      std::vector<VkDeviceMemory> &uniform_buffer_memories,
+      VkDescriptorPool &descriptor_pool) {
     //
     vkFreeCommandBuffers(
         logical_dev.device(), command_pool,
@@ -205,6 +208,15 @@ public:
     // 3. destroy swap chain
     vkDestroySwapchainKHR(logical_dev.device(), chain,
                           nullptr);
+    // 4. destroy uniform buffers
+    for (std::size_t i = 0; i < simages.size(); i++) {
+      vkDestroyBuffer(logical_dev.device(),
+                      uniform_buffers[i], nullptr);
+      vkFreeMemory(logical_dev.device(),
+                   uniform_buffer_memories[i], nullptr);
+    }
+    // 5. destroy descriptor pool
+    vkDestroyDescriptorPool(logical_dev.device(), descriptor_pool, nullptr);
   }
 };
 }

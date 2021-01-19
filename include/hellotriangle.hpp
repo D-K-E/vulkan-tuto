@@ -47,6 +47,14 @@ public:
   /** render pass */
   VkRenderPass render_pass;
 
+  /** descriptor set layout*/
+  VkDescriptorSetLayout descriptor_set_layout;
+
+  /** descriptor pool*/
+  VkDescriptorPool descriptor_pool;
+
+  std::vector<VkDescriptorSet> descriptor_sets;
+
   /** graphics pipeline layout*/
   VkPipelineLayout pipeline_layout;
 
@@ -64,6 +72,10 @@ public:
   /** index buffer*/
   VkBuffer index_buffer;
   VkDeviceMemory index_buffer_memory;
+
+  /** uniform buffer*/
+  std::vector<VkBuffer> uniform_buffers;
+  std::vector<VkDeviceMemory> uniform_buffer_memories;
 
   /** vk semaphore to hold available and rendered images */
   std::vector<VkSemaphore> image_available_semaphores;
@@ -267,11 +279,15 @@ number of indices for given device family.
   VkShaderModule
   createShaderModule(const std::vector<char> &shaderCode);
   void createGraphicsPipeline();
+  void createDescriptorSetLayout();
+  void createDescriptorPool();
+  void createDescriptorSets();
   void createFramebuffers();
   uint32_t findMemoryType(uint32_t filter,
                           VkMemoryPropertyFlags flags);
   void createVertexBuffer();
   void createIndexBuffer();
+  void createUniformBuffer();
   void copyBuffer(VkBuffer src, VkBuffer dst,
                   VkDeviceSize size);
   void createBuffer(VkDeviceSize size,
@@ -283,6 +299,7 @@ number of indices for given device family.
   void createCommandBuffers();
   void createSyncObjects();
   void recreateSwapchain();
+  void updateUniformBuffer(uint32_t image_index);
   void draw();
 };
 }

@@ -1,12 +1,13 @@
 // main file
+#include <cstdint>
 #include <debug.hpp>
 #include <external.hpp>
 #include <hellotriangle.hpp>
 #include <ldevice.hpp>
 #include <pdevice.hpp>
-#include <stdexcept>
 #include <support.hpp>
 #include <triangle.hpp>
+#include <ubo.hpp>
 #include <utils.hpp>
 //
 using namespace vtuto;
@@ -89,6 +90,9 @@ void HelloTriangle::initVulkan() {
   // 7. create render pass
   createRenderPass();
 
+  // 8. descriptor set layout
+  createDescriptorSetLayout();
+
   // 8. create graphics pipeline
   createGraphicsPipeline();
 
@@ -105,7 +109,15 @@ void HelloTriangle::initVulkan() {
   // 12. create index buffer
   createIndexBuffer();
 
-  // 13. create command buffer
+  // 13. create uniform buffers
+  createUniformBuffer();
+
+  // 14. create descriptor pool
+  createDescriptorPool();
+  // 15. create descriptor sets
+  createDescriptorSets();
+
+  // 14. create command buffer
   createCommandBuffers();
 
   // 14. create sync objects: semaphores, fences etc
@@ -200,9 +212,14 @@ void HelloTriangle::renderLoop() {
 void HelloTriangle::cleanUp() {
   //
   auto v = cmd_buffers.to_vec();
-  swap_chain.destroy(logical_dev, command_pool.pool, v,
-                     swapchain_framebuffers, render_pass,
-                     graphics_pipeline, pipeline_layout);
+  swap_chain.destroy(
+      logical_dev, command_pool.pool, v,
+      swapchain_framebuffers, render_pass,
+      graphics_pipeline, pipeline_layout, uniform_buffers,
+      uniform_buffer_memories, descriptor_pool);
+  //
+  vkDestroyDescriptorSetLayout(
+      logical_dev.device(), descriptor_set_layout, nullptr);
 
   vkDestroyBuffer(logical_dev.device(), index_buffer,
                   nullptr);
@@ -588,7 +605,7 @@ void HelloTriangle::createGraphicsPipeline() {
   rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
   rasterizer.lineWidth = 1.0f;
   rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-  rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+  rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
   rasterizer.depthBiasEnable = VK_FALSE;
 
   // multisample state configuration
@@ -625,8 +642,11 @@ void HelloTriangle::createGraphicsPipeline() {
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType =
       VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 0;
-  pipelineLayoutInfo.pushConstantRangeCount = 0;
+  //
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = &descriptor_set_layout;
+  //
+  // pipelineLayoutInfo.pushConstantRangeCount = 0;
 
   CHECK_VK(vkCreatePipelineLayout(
                logical_dev.device(), &pipelineLayoutInfo,
@@ -790,6 +810,106 @@ void HelloTriangle::copyBuffer(VkBuffer src, VkBuffer dst,
                        command_pool.pool, 1,
                        &commandBuffer);
 }
+void HelloTriangle::createUniformBuffer() {
+  VkDeviceSize b_size = sizeof(UniformBufferObject);
+
+  uniform_buffers.resize(swap_chain.simages.size());
+  uniform_buffer_memories.resize(swap_chain.simages.size());
+  for (std::size_t i = 0; i < swap_chain.simages.size();
+       i++) {
+    //
+    auto usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    auto mem_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    createBuffer(b_size, usage, mem_flags,
+                 uniform_buffers[i],
+                 uniform_buffer_memories[i]);
+  }
+}
+void HelloTriangle::createDescriptorPool() {
+  //
+  VkDescriptorPoolSize psize{};
+  psize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  psize.descriptorCount =
+      static_cast<uint32_t>(swap_chain.simages.size());
+
+  // create descriptor pool
+  VkDescriptorPoolCreateInfo pinfo{};
+  pinfo.sType =
+      VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+  pinfo.poolSizeCount = 1;
+  pinfo.pPoolSizes = &psize;
+  pinfo.maxSets =
+      static_cast<uint32_t>(swap_chain.simages.size());
+
+  CHECK_VK(vkCreateDescriptorPool(logical_dev.device(),
+                                  &pinfo, nullptr,
+                                  &descriptor_pool),
+           "failed to create descriptor pool");
+}
+void HelloTriangle::createDescriptorSets() {
+  std::vector<VkDescriptorSetLayout> layouts(
+      swap_chain.simages.size(), descriptor_set_layout);
+  //
+  VkDescriptorSetAllocateInfo allocInfo{};
+  allocInfo.sType =
+      VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+  allocInfo.descriptorPool = descriptor_pool;
+  allocInfo.descriptorSetCount =
+      static_cast<uint32_t>(swap_chain.simages.size());
+  allocInfo.pSetLayouts = layouts.data();
+
+  descriptor_sets.resize(swap_chain.simages.size());
+  CHECK_VK(vkAllocateDescriptorSets(logical_dev.device(),
+                                    &allocInfo,
+                                    descriptor_sets.data()),
+           "failed to allocate descriptor sets");
+
+  //
+  for (std::size_t i = 0; i < swap_chain.simages.size();
+       i++) {
+    VkDescriptorBufferInfo binfo{};
+    binfo.buffer = uniform_buffers[i];
+    binfo.offset = 0;
+    binfo.range = sizeof(UniformBufferObject);
+    //
+    VkWriteDescriptorSet dwset{};
+    dwset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    dwset.dstSet = descriptor_sets[i];
+    dwset.dstBinding = 0;
+    dwset.dstArrayElement = 0;
+    dwset.descriptorType =
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    dwset.descriptorCount = 1;
+    dwset.pBufferInfo = &binfo;
+
+    //
+    vkUpdateDescriptorSets(logical_dev.device(), 1, &dwset,
+                           0, nullptr);
+  }
+}
+/** Descriptor layout for binding*/
+void HelloTriangle::createDescriptorSetLayout() {
+  //
+  VkDescriptorSetLayoutBinding uboLayoutBinding{};
+  uboLayoutBinding.binding = 0;
+  uboLayoutBinding.descriptorCount = 1;
+  uboLayoutBinding.descriptorType =
+      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  uboLayoutBinding.pImmutableSamplers = nullptr;
+  uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkDescriptorSetLayoutCreateInfo uboLayoutCreateInfo{};
+  uboLayoutCreateInfo.sType =
+      VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  uboLayoutCreateInfo.bindingCount = 1;
+  uboLayoutCreateInfo.pBindings = &uboLayoutBinding;
+
+  CHECK_VK(vkCreateDescriptorSetLayout(
+               logical_dev.device(), &uboLayoutCreateInfo,
+               nullptr, &descriptor_set_layout),
+           "descriptor set layout creation failed");
+}
 /**
   abstract buffer creation mechanism
  */
@@ -868,7 +988,8 @@ void HelloTriangle::createCommandBuffers() {
     auto buffer = vulkan_buffer<VkCommandBuffer>(
         cmd_buffers.get(i), swapchain_framebuffers[i],
         render_pass, swap_chain.sextent, graphics_pipeline,
-        vertex_buffer, index_buffer, square_indices);
+        vertex_buffer, index_buffer, square_indices,
+        descriptor_sets[i], pipeline_layout);
   }
 }
 void HelloTriangle::createSyncObjects() {
@@ -912,14 +1033,54 @@ void HelloTriangle::recreateSwapchain() {
   }
   vkDeviceWaitIdle(logical_dev.device());
   auto vs = cmd_buffers.to_vec();
-  swap_chain.destroy(logical_dev, command_pool.pool, vs,
-                     swapchain_framebuffers, render_pass,
-                     graphics_pipeline, pipeline_layout);
+  swap_chain.destroy(
+      logical_dev, command_pool.pool, vs,
+      swapchain_framebuffers, render_pass,
+      graphics_pipeline, pipeline_layout, uniform_buffers,
+      uniform_buffer_memories, descriptor_pool);
   swap_chain = swapchain(physical_dev, logical_dev, window);
+  // 1. render pass
   createRenderPass();
+  // 2. graphics pipeline
   createGraphicsPipeline();
+  // 3. frame buffer
   createFramebuffers();
+  // 4. uniform buffer
+  createUniformBuffer();
+  // 5. descriptor pool
+  createDescriptorPool();
+  // 6. descriptor pool
+  createDescriptorSets();
+  // 7. command buffers
   createCommandBuffers();
+}
+void HelloTriangle::updateUniformBuffer(
+    uint32_t image_index) {
+  UniformBufferObject ubo;
+  glm::mat4 model(1.0f);
+  ubo.model = glm::rotate(model, glm::radians(45.0f),
+                          glm::vec3(0.0f, 0.0f, 1.0f));
+  glm::vec3 cam_pos(2.0f);
+  glm::vec3 cam_target(0.0f);
+  glm::vec3 world_up(0.0f, 0.0f, 1.0f);
+  ubo.view = glm::lookAt(cam_pos, cam_target, world_up);
+  float aspect_ratio =
+      swap_chain.sextent.width /
+      static_cast<float>(swap_chain.sextent.height);
+  float near_plane_distance = 0.1f;
+  float far_plane_distance = 100.0f;
+  ubo.proj = glm::perspective(
+      glm::radians(45.0f), aspect_ratio,
+      near_plane_distance, far_plane_distance);
+  ubo.proj[1][1] *= -1;
+
+  void *data;
+  vkMapMemory(logical_dev.device(),
+              uniform_buffer_memories[image_index], 0,
+              sizeof(ubo), 0, &data);
+  memcpy(data, &ubo, sizeof(ubo));
+  vkUnmapMemory(logical_dev.device(),
+                uniform_buffer_memories[image_index]);
 }
 void HelloTriangle::draw() {
   vkWaitForFences(logical_dev.device(), 1,
@@ -949,6 +1110,9 @@ void HelloTriangle::draw() {
   }
   images_in_flight[image_index] =
       current_fences[current_frame];
+
+  // update uniform
+  updateUniformBuffer(image_index);
 
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

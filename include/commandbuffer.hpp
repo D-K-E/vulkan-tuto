@@ -59,6 +59,8 @@ public:
       VkExtent2D swap_chain_extent,
       VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
       VkBuffer index_buffer, std::vector<uint16_t> indices,
+      VkDescriptorSet descriptor_set,
+      VkPipelineLayout pipeline_layout,
       int32_t render_offset_x = 0,
       int32_t render_offset_y = 0,
       VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f},
@@ -75,8 +77,9 @@ public:
     mk_cmd_buffer(
         sc_framebuffer, render_pass, swap_chain_extent,
         graphics_pipeline, vertex_buffer, index_buffer,
-        indices, render_offset_x, render_offset_y,
-        clearColor, clearValueCount, subpass_contents,
+        indices, descriptor_set, pipeline_layout,
+        render_offset_x, render_offset_y, clearColor,
+        clearValueCount, subpass_contents,
         graphics_pass_bind_point, vertex_count,
         instance_count, first_vertex_index,
         first_instance_index);
@@ -88,6 +91,8 @@ public:
       VkExtent2D swap_chain_extent,
       VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
       VkBuffer index_buffer, std::vector<uint16_t> indices,
+      VkDescriptorSet descriptor_set,
+      VkPipelineLayout pipeline_layout,
       VkCommandBufferBeginInfo beginInfo,
       VkRenderPassBeginInfo renderPassInfo,
       VkDrawInfo drawInfo,
@@ -109,6 +114,8 @@ public:
       VkExtent2D swap_chain_extent,
       VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
       VkBuffer index_buffer, std::vector<uint16_t> indices,
+      VkDescriptorSet descriptor_set,
+      VkPipelineLayout pipeline_layout,
       int32_t render_offset_x = 0,
       int32_t render_offset_y = 0,
       VkClearValue clearColor = {0.0f, 0.0f, 0.0f, 1.0f},
@@ -157,6 +164,11 @@ public:
     // 6. bind index buffer to command buffer
     vkCmdBindIndexBuffer(buffer, index_buffer, 0,
                          VK_INDEX_TYPE_UINT16);
+
+    // 7. bind descriptor set
+    vkCmdBindDescriptorSets(
+        buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
 
     // 7. draw given command buffer with indices
     vkCmdDrawIndexed(buffer,
