@@ -1,10 +1,10 @@
 // main file
-#include <cstdint>
 #include <debug.hpp>
 #include <external.hpp>
 #include <hellotriangle.hpp>
 #include <ldevice.hpp>
 #include <pdevice.hpp>
+#include <stdexcept>
 #include <support.hpp>
 #include <triangle.hpp>
 #include <ubo.hpp>
@@ -102,6 +102,9 @@ void HelloTriangle::initVulkan() {
   // 10. create command pool
   // createCommandPool();
   command_pool = vk_command_pool(physical_dev, logical_dev);
+
+  // 11. create texture images
+  createTextureImage();
 
   // 11. create vertex buffer
   createVertexBuffer();
@@ -693,6 +696,126 @@ void HelloTriangle::createFramebuffers() {
     //
   }
 }
+void HelloTriangle::createTextureImage() {
+  //
+  int imwidth, imheight, imchannel;
+  unsigned char *pixels =
+      stbi_load("assets/textures/glowmekitty.png", &imwidth,
+                &imheight, &imchannel, 0);
+  VkDeviceSize imsize = imwidth * imheight * 4;
+  if (!pixels) {
+    throw std::runtime_error(
+        "pixel data can not be loaded");
+  }
+  VkBufferUsageFlags usage =
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+  VkMemoryPropertyFlags mem_flags =
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+      VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+  createBuffer(imsize, usage, mem_flags, staging_buffer,
+               stage_buffer_memory);
+  void *data;
+  vkMapMemory(logical_dev.device(), stage_buffer_memory, 0,
+              imsize, 0, &data);
+  memcpy(data, pixels, static_cast<std::size_t>(imsize));
+  vkUnmapMemory(logical_dev.device(), stage_buffer_memory);
+  //
+  stbi_image_free(pixels);
+
+  // create texture image as vulkan image
+  VkFormat imformat = VK_FORMAT_R8G8B8A8_SRGB;
+  VkImageTiling imtiling = VK_IMAGE_TILING_OPTIMAL;
+  VkImageUsageFlags imusage =
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+      VK_IMAGE_USAGE_SAMPLED_BIT;
+  VkMemoryPropertyFlags improps =
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+  createImage(imwidth, imheight, imformat, imtiling,
+              imusage, improps, texture_image,
+              texture_image_memory);
+  //
+}
+void HelloTriangle::createImage(
+    uint32_t imw, uint32_t imh, VkFormat format,
+    VkImageTiling tiling, VkImageUsageFlags imusage,
+    VkMemoryPropertyFlags improps, VkImage &vimage,
+    VkDeviceMemory &vimage_memory) {
+  VkImageCreateInfo img_info{};
+  img_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  img_info.imageType = VK_IMAGE_TYPE_2D;
+  img_info.extent.width = imw;
+  img_info.extent.height = imh;
+  img_info.extent.depth = 1;
+  img_info.mipLevels = 1;
+  img_info.arrayLayers = 1;
+  img_info.format = format;
+  img_info.tiling = tiling;
+  img_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  img_info.usage = imusage;
+  img_info.samples = VK_SAMPLE_COUNT_1_BIT;
+  img_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+  CHECK_VK(vkCreateImage(logical_dev.device(), &img_info,
+                         nullptr, &vimage),
+           "failed to create image");
+  //
+  VkMemoryRequirements mem_req;
+  vkGetImageMemoryRequirements(logical_dev.device(), vimage,
+                               &mem_req);
+
+  //
+  VkMemoryAllocateInfo allocInfo{};
+  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocInfo.allocationSize = mem_req.size;
+  allocInfo.memoryTypeIndex =
+      findMemoryType(mem_req.memoryTypeBits, improps);
+
+  CHECK_VK(vkAllocateMemory(logical_dev.device(),
+                            &allocInfo, nullptr,
+                            &vimage_memory),
+           "failed to create image memory");
+  vkBindImageMemory(logical_dev.device(), vimage,
+                    vimage_memory, 0);
+}
+
+VkCommandBuffer HelloTriangle::beginSignalCommand() {
+  //
+  VkCommandBufferAllocateInfo allocInfo{};
+  allocInfo.sType =
+      VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocInfo.commandPool = command_pool.pool;
+  allocInfo.commandBufferCount = 1;
+
+  VkCommandBuffer cbuffer;
+  vkAllocateCommandBuffers(logical_dev.device(), &allocInfo,
+                           &cbuffer);
+
+  VkCommandBufferBeginInfo binfo{};
+  binfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  binfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+  //
+  vkBeginCommandBuffer(cbuffer, &binfo);
+  return cbuffer;
+}
+void HelloTriangle::endSignalCommand(
+    VkCommandBuffer cbuffer) {
+  vkEndCommandBuffer(cbuffer);
+
+  VkSubmitInfo sinfo{};
+  sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  sinfo.commandBufferCount = 1;
+  sinfo.pCommandBuffers = &cbuffer;
+
+  //
+  vkQueueSubmit(logical_dev.graphics_queue, 1, &sinfo,
+                VK_NULL_HANDLE);
+  vkQueueWaitIdle(logical_dev.graphics_queue);
+
+  vkFreeCommandBuffers(logical_dev.device(),
+                       command_pool.pool, 1, &cbuffer);
+}
 void HelloTriangle::createVertexBuffer() {
   // 1. buffer related info
   auto device_size = square_vs.size() * sizeof(Vertex);
@@ -773,42 +896,15 @@ void HelloTriangle::createIndexBuffer() {
 void HelloTriangle::copyBuffer(VkBuffer src, VkBuffer dst,
                                VkDeviceSize size) {
   //
-  VkCommandBufferAllocateInfo allocInfo{};
-  allocInfo.sType =
-      VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandPool = command_pool.pool;
-  allocInfo.commandBufferCount = 1;
-
-  VkCommandBuffer commandBuffer;
-  vkAllocateCommandBuffers(logical_dev.device(), &allocInfo,
-                           &commandBuffer);
-
-  VkCommandBufferBeginInfo binfo{};
-  binfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  binfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  VkCommandBuffer cbuffer = beginSignalCommand();
 
   // start recording commands
-
-  vkBeginCommandBuffer(commandBuffer, &binfo);
   VkBufferCopy copyRegion{};
   copyRegion.size = size;
-  vkCmdCopyBuffer(commandBuffer, src, dst, 1, &copyRegion);
-  vkEndCommandBuffer(commandBuffer);
+  vkCmdCopyBuffer(cbuffer, src, dst, 1, &copyRegion);
 
-  // end recording commands
-
-  VkSubmitInfo sinfo{};
-  sinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  sinfo.commandBufferCount = 1;
-  sinfo.pCommandBuffers = &commandBuffer;
-
-  vkQueueSubmit(logical_dev.graphics_queue, 1, &sinfo,
-                VK_NULL_HANDLE);
-  vkQueueWaitIdle(logical_dev.graphics_queue);
-  vkFreeCommandBuffers(logical_dev.device(),
-                       command_pool.pool, 1,
-                       &commandBuffer);
+  // end signal
+  endSignalCommand(cbuffer);
 }
 void HelloTriangle::createUniformBuffer() {
   VkDeviceSize b_size = sizeof(UniformBufferObject);

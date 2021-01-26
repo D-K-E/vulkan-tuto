@@ -65,6 +65,12 @@ public:
   vk_command_pool command_pool;
   vulkan_buffers<VkCommandBuffer> cmd_buffers;
 
+  /** texture staging buffer*/
+  VkBuffer staging_buffer;
+  VkDeviceMemory stage_buffer_memory;
+  VkImage texture_image;
+  VkDeviceMemory texture_image_memory;
+
   /** vertex buffer*/
   VkBuffer vertex_buffer;
   VkDeviceMemory vertex_buffer_memory;
@@ -299,7 +305,16 @@ number of indices for given device family.
   void createCommandBuffers();
   void createSyncObjects();
   void recreateSwapchain();
+  void createTextureImage();
+  void createImage(uint32_t imw, uint32_t imh,
+                   VkFormat format, VkImageTiling tiling,
+                   VkImageUsageFlags imusage,
+                   VkMemoryPropertyFlags improps,
+                   VkImage &vimage,
+                   VkDeviceMemory &vimage_memory);
   void updateUniformBuffer(uint32_t image_index);
   void draw();
+  VkCommandBuffer beginSignalCommand();
+  void endSignalCommand(VkCommandBuffer cbuffer);
 };
 }

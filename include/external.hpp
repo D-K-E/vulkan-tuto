@@ -7,6 +7,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+// stb image
+#define STB_IMAGE_IMPLEMENTATION
+#include <thirdparty/stb_image.h>
+//
+
 //
 #include <array>
 #include <cstdint>
