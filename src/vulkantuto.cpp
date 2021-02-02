@@ -107,13 +107,19 @@ void HelloTriangle::initVulkan() {
   // 11. create texture images
   createTextureImage();
 
-  // 11. create vertex buffer
+  // 12. create texture image viewer
+  createTextureImageView();
+
+  // 13. create texture sampler
+  createTextureSampler();
+
+  // 13. create vertex buffer
   createVertexBuffer();
 
-  // 12. create index buffer
+  // 14. create index buffer
   createIndexBuffer();
 
-  // 13. create uniform buffers
+  // 15. create uniform buffers
   createUniformBuffer();
 
   // 14. create descriptor pool
@@ -221,6 +227,12 @@ void HelloTriangle::cleanUp() {
       swapchain_framebuffers, render_pass,
       graphics_pipeline, pipeline_layout, uniform_buffers,
       uniform_buffer_memories, descriptor_pool);
+
+  // destroy texture sampler
+  vkDestroySampler(logical_dev.device(), texture_sampler, nullptr);
+  // destroy image view
+  vkDestroyImageView(logical_dev.device(),
+                     texture_image_view, nullptr);
   //
   vkDestroyImage(logical_dev.device(), texture_image,
                  nullptr);
@@ -844,8 +856,8 @@ void HelloTriangle::transitionImageLayout(
         "unsupported layout transition");
   }
   vkCmdPipelineBarrier(command_buffer, source_stage,
-                           dst_stage, 0, 0, nullptr, 0,
-                           nullptr, 1, &barrier);
+                       dst_stage, 0, 0, nullptr, 0, nullptr,
+                       1, &barrier);
   endSignalCommand(command_buffer);
 }
 
@@ -871,6 +883,64 @@ void HelloTriangle::copyBufferToImage(VkBuffer buffer,
       cbuffer, buffer, image,
       VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
   endSignalCommand(cbuffer);
+}
+VkImageView
+HelloTriangle::createImageView(VkImage image,
+                               VkFormat image_format) {
+  VkImageViewCreateInfo createInfo{};
+  createInfo.sType =
+      VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  createInfo.image = image;
+  createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  createInfo.format = image_format;
+  createInfo.subresourceRange.aspectMask =
+      VK_IMAGE_ASPECT_COLOR_BIT;
+  createInfo.subresourceRange.baseMipLevel = 0;
+  createInfo.subresourceRange.levelCount = 1;
+  createInfo.subresourceRange.baseArrayLayer = 0;
+  createInfo.subresourceRange.layerCount = 1;
+  VkImageView imview;
+  CHECK_VK(vkCreateImageView(logical_dev.device(),
+                             &createInfo, nullptr, &imview),
+           "failed to create texture image view");
+  return imview;
+}
+void HelloTriangle::createTextureImageView() {
+  //
+  auto imformat = VK_FORMAT_R8G8B8A8_SRGB;
+  texture_image_view =
+      createImageView(texture_image, imformat);
+}
+void HelloTriangle::createTextureSampler() {
+  VkPhysicalDeviceProperties props{};
+  vkGetPhysicalDeviceProperties(physical_dev.device(),
+                                &props);
+
+  // sampler create info
+  VkSamplerCreateInfo cinfo{};
+  cinfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+  cinfo.magFilter = VK_FILTER_LINEAR;
+  cinfo.minFilter = VK_FILTER_LINEAR;
+
+  // how should sampler behave if the texture image does not
+  // cover all of the visible surface:
+  cinfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  cinfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  cinfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+  //
+  cinfo.anisotropyEnable = VK_TRUE;
+  cinfo.maxAnisotropy = props.limits.maxSamplerAnisotropy;
+  cinfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+  cinfo.unnormalizedCoordinates = VK_FALSE;
+  cinfo.compareEnable = VK_FALSE;
+  cinfo.compareOp = VK_COMPARE_OP_ALWAYS;
+  cinfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+  // create sampler with given information
+  CHECK_VK(vkCreateSampler(logical_dev.device(), &cinfo,
+                           nullptr, &texture_sampler),
+           "failed to create texture sampler");
 }
 
 VkCommandBuffer HelloTriangle::beginSignalCommand() {

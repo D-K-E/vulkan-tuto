@@ -65,11 +65,17 @@ public:
   vk_command_pool command_pool;
   vulkan_buffers<VkCommandBuffer> cmd_buffers;
 
-  /** texture staging buffer*/
+  /** texture staging buffer */
   VkBuffer staging_buffer;
   VkDeviceMemory stage_buffer_memory;
   VkImage texture_image;
   VkDeviceMemory texture_image_memory;
+
+  /** texture image view */
+  VkImageView texture_image_view;
+
+  /** texture sampler */
+  VkSampler texture_sampler;
 
   /** vertex buffer*/
   VkBuffer vertex_buffer;
@@ -306,6 +312,9 @@ number of indices for given device family.
   void createSyncObjects();
   void recreateSwapchain();
   void createTextureImage();
+  void createTextureSampler();
+  VkImageView createImageView(VkImage image, VkFormat image_format);
+  void createTextureImageView();
   void createImage(uint32_t imw, uint32_t imh,
                    VkFormat format, VkImageTiling tiling,
                    VkImageUsageFlags imusage,

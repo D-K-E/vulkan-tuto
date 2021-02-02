@@ -48,6 +48,7 @@ public:
 
     //
     VkPhysicalDeviceFeatures deviceFeature{};
+    deviceFeature.samplerAnisotropy = VK_TRUE;
 
     //
     VkDeviceCreateInfo createInfo{};

@@ -79,8 +79,12 @@ public:
           !swapChainSupport.formats.empty() &&
           !swapChainSupport.present_modes.empty();
     }
-    return indices.is_complete() &&
+    VkPhysicalDeviceProperties dprops{};
+    vkGetPhysicalDeviceProperties(pdev, &dprops);
+    bool cond1 = indices.is_complete() &&
            areExtensionsSupported && isSwapChainPossible;
+    bool cond2 = cond1 && (dprops.limits.maxSamplerAnisotropy > 0.0);
+    return cond2;
   }
   void createSurface(GLFWwindow *window) {
     CHECK_VK(glfwCreateWindowSurface(instance(), window,
