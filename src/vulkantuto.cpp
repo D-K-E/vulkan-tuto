@@ -1,4 +1,5 @@
 // main file
+#include <cstdint>
 #include <debug.hpp>
 #include <external.hpp>
 #include <hellotriangle.hpp>
@@ -220,6 +221,11 @@ void HelloTriangle::cleanUp() {
       swapchain_framebuffers, render_pass,
       graphics_pipeline, pipeline_layout, uniform_buffers,
       uniform_buffer_memories, descriptor_pool);
+  //
+  vkDestroyImage(logical_dev.device(), texture_image,
+                 nullptr);
+  vkFreeMemory(logical_dev.device(), texture_image_memory,
+               nullptr);
   //
   vkDestroyDescriptorSetLayout(
       logical_dev.device(), descriptor_set_layout, nullptr);
@@ -734,6 +740,24 @@ void HelloTriangle::createTextureImage() {
               imusage, improps, texture_image,
               texture_image_memory);
   //
+  auto format = VK_FORMAT_R8G8B8A8_SRGB;
+  auto old_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+  auto new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  transitionImageLayout(texture_image, format, old_layout,
+                        new_layout);
+  copyBufferToImage(staging_buffer, texture_image,
+                    static_cast<uint32_t>(imwidth),
+                    static_cast<uint32_t>(imheight));
+
+  old_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  new_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  transitionImageLayout(texture_image, format, old_layout,
+                        new_layout);
+
+  vkDestroyBuffer(logical_dev.device(), staging_buffer,
+                  nullptr);
+  vkFreeMemory(logical_dev.device(), stage_buffer_memory,
+               nullptr);
 }
 void HelloTriangle::createImage(
     uint32_t imw, uint32_t imh, VkFormat format,
@@ -776,6 +800,77 @@ void HelloTriangle::createImage(
            "failed to create image memory");
   vkBindImageMemory(logical_dev.device(), vimage,
                     vimage_memory, 0);
+}
+void HelloTriangle::transitionImageLayout(
+    VkImage image, VkFormat format,
+    VkImageLayout old_layout, VkImageLayout new_layout) {
+  VkCommandBuffer command_buffer = beginSignalCommand();
+  //
+  VkImageMemoryBarrier barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.oldLayout = old_layout;
+  barrier.newLayout = new_layout;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.image = image;
+  barrier.subresourceRange.aspectMask =
+      VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = 1;
+
+  VkPipelineStageFlags source_stage;
+  VkPipelineStageFlags dst_stage;
+
+  if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
+      new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+    source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+  } else if (old_layout ==
+                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+             new_layout ==
+                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+  } else {
+    throw std::invalid_argument(
+        "unsupported layout transition");
+  }
+  vkCmdPipelineBarrier(command_buffer, source_stage,
+                           dst_stage, 0, 0, nullptr, 0,
+                           nullptr, 1, &barrier);
+  endSignalCommand(command_buffer);
+}
+
+void HelloTriangle::copyBufferToImage(VkBuffer buffer,
+                                      VkImage image,
+                                      uint32_t width,
+                                      uint32_t height) {
+  VkCommandBuffer cbuffer = beginSignalCommand();
+
+  VkBufferImageCopy region{};
+  region.bufferOffset = 0;
+  region.bufferRowLength = 0;
+  region.bufferImageHeight = 0;
+  region.imageSubresource.aspectMask =
+      VK_IMAGE_ASPECT_COLOR_BIT;
+  region.imageSubresource.mipLevel = 0;
+  region.imageSubresource.baseArrayLayer = 0;
+  region.imageSubresource.layerCount = 1;
+  region.imageOffset = {0, 0, 0};
+  region.imageExtent = {width, height, 1};
+
+  vkCmdCopyBufferToImage(
+      cbuffer, buffer, image,
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+  endSignalCommand(cbuffer);
 }
 
 VkCommandBuffer HelloTriangle::beginSignalCommand() {
