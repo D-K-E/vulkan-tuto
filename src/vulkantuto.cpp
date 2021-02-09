@@ -113,24 +113,24 @@ void HelloTriangle::initVulkan() {
   // 13. create texture sampler
   createTextureSampler();
 
-  // 13. create vertex buffer
+  // 14. create vertex buffer
   createVertexBuffer();
 
-  // 14. create index buffer
+  // 15. create index buffer
   createIndexBuffer();
 
-  // 15. create uniform buffers
+  // 16. create uniform buffers
   createUniformBuffer();
 
-  // 14. create descriptor pool
+  // 17. create descriptor pool
   createDescriptorPool();
-  // 15. create descriptor sets
+  // 18. create descriptor sets
   createDescriptorSets();
 
-  // 14. create command buffer
+  // 19. create command buffer
   createCommandBuffers();
 
-  // 14. create sync objects: semaphores, fences etc
+  // 20. create sync objects: semaphores, fences etc
   createSyncObjects();
 }
 /**
@@ -229,7 +229,8 @@ void HelloTriangle::cleanUp() {
       uniform_buffer_memories, descriptor_pool);
 
   // destroy texture sampler
-  vkDestroySampler(logical_dev.device(), texture_sampler, nullptr);
+  vkDestroySampler(logical_dev.device(), texture_sampler,
+                   nullptr);
   // destroy image view
   vkDestroyImageView(logical_dev.device(),
                      texture_image_view, nullptr);
@@ -718,7 +719,7 @@ void HelloTriangle::createTextureImage() {
   //
   int imwidth, imheight, imchannel;
   unsigned char *pixels =
-      stbi_load("assets/textures/glowmekitty.png", &imwidth,
+      stbi_load("assets/textures/callimachusCover.png", &imwidth,
                 &imheight, &imchannel, 0);
   VkDeviceSize imsize = imwidth * imheight * 4;
   if (!pixels) {
@@ -1089,17 +1090,22 @@ void HelloTriangle::createUniformBuffer() {
 }
 void HelloTriangle::createDescriptorPool() {
   //
-  VkDescriptorPoolSize psize{};
-  psize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  psize.descriptorCount =
+  std::array<VkDescriptorPoolSize, 2> poolSizes{};
+  poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  poolSizes[0].descriptorCount =
+      static_cast<uint32_t>(swap_chain.simages.size());
+  poolSizes[1].type =
+      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  poolSizes[1].descriptorCount =
       static_cast<uint32_t>(swap_chain.simages.size());
 
   // create descriptor pool
   VkDescriptorPoolCreateInfo pinfo{};
   pinfo.sType =
       VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  pinfo.poolSizeCount = 1;
-  pinfo.pPoolSizes = &psize;
+  pinfo.poolSizeCount =
+      static_cast<uint32_t>(poolSizes.size());
+  pinfo.pPoolSizes = poolSizes.data();
   pinfo.maxSets =
       static_cast<uint32_t>(swap_chain.simages.size());
 
@@ -1134,18 +1140,35 @@ void HelloTriangle::createDescriptorSets() {
     binfo.offset = 0;
     binfo.range = sizeof(UniformBufferObject);
     //
-    VkWriteDescriptorSet dwset{};
-    dwset.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    dwset.dstSet = descriptor_sets[i];
-    dwset.dstBinding = 0;
-    dwset.dstArrayElement = 0;
-    dwset.descriptorType =
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout =
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = texture_image_view;
+    imageInfo.sampler = texture_sampler;
+    //
+    std::array<VkWriteDescriptorSet, 2> dwset{};
+
+    dwset[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    dwset[0].dstSet = descriptor_sets[i];
+    dwset[0].dstBinding = 0;
+    dwset[0].dstArrayElement = 0;
+    dwset[0].descriptorType =
         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    dwset.descriptorCount = 1;
-    dwset.pBufferInfo = &binfo;
+    dwset[0].descriptorCount = 1;
+    dwset[0].pBufferInfo = &binfo;
+    //
+    dwset[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    dwset[1].dstSet = descriptor_sets[i];
+    dwset[1].dstBinding = 1;
+    dwset[1].dstArrayElement = 0;
+    dwset[1].descriptorType =
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    dwset[1].descriptorCount = 1;
+    dwset[1].pImageInfo = &imageInfo;
 
     //
-    vkUpdateDescriptorSets(logical_dev.device(), 1, &dwset,
+    vkUpdateDescriptorSets(logical_dev.device(),
+            static_cast<uint32_t>(dwset.size()), dwset.data(),
                            0, nullptr);
   }
 }
@@ -1160,15 +1183,28 @@ void HelloTriangle::createDescriptorSetLayout() {
   uboLayoutBinding.pImmutableSamplers = nullptr;
   uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-  VkDescriptorSetLayoutCreateInfo uboLayoutCreateInfo{};
-  uboLayoutCreateInfo.sType =
+  VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+  samplerLayoutBinding.binding = 1;
+  samplerLayoutBinding.descriptorCount = 1;
+  samplerLayoutBinding.descriptorType =
+      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  samplerLayoutBinding.pImmutableSamplers = nullptr;
+  samplerLayoutBinding.stageFlags =
+      VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  std::array<VkDescriptorSetLayoutBinding, 2> bindings = {
+      uboLayoutBinding, samplerLayoutBinding};
+  //
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType =
       VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  uboLayoutCreateInfo.bindingCount = 1;
-  uboLayoutCreateInfo.pBindings = &uboLayoutBinding;
+  layoutInfo.bindingCount =
+      static_cast<uint32_t>(bindings.size());
+  layoutInfo.pBindings = bindings.data();
 
   CHECK_VK(vkCreateDescriptorSetLayout(
-               logical_dev.device(), &uboLayoutCreateInfo,
-               nullptr, &descriptor_set_layout),
+               logical_dev.device(), &layoutInfo, nullptr,
+               &descriptor_set_layout),
            "descriptor set layout creation failed");
 }
 /**
