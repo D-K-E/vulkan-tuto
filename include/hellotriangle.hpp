@@ -77,6 +77,11 @@ public:
   /** texture sampler */
   VkSampler texture_sampler;
 
+  /** depth image related*/
+  VkImage depth_image;
+  VkImageView depth_image_view;
+  VkDeviceMemory depth_image_memory;
+
   /** vertex buffer*/
   VkBuffer vertex_buffer;
   VkDeviceMemory vertex_buffer_memory;
@@ -297,6 +302,11 @@ number of indices for given device family.
   void createFramebuffers();
   uint32_t findMemoryType(uint32_t filter,
                           VkMemoryPropertyFlags flags);
+  VkFormat findSupportedFormat(
+      const std::vector<VkFormat> &candidates,
+      VkImageTiling tiling, VkFormatFeatureFlags features);
+  VkFormat findDepthFormat();
+  bool hasStencilSupport(VkFormat format);
   void createVertexBuffer();
   void createIndexBuffer();
   void createUniformBuffer();
@@ -311,9 +321,12 @@ number of indices for given device family.
   void createCommandBuffers();
   void createSyncObjects();
   void recreateSwapchain();
+  void createDepthRessources();
   void createTextureImage();
   void createTextureSampler();
-  VkImageView createImageView(VkImage image, VkFormat image_format);
+  VkImageView
+  createImageView(VkImage image, VkFormat image_format,
+                  VkImageAspectFlags aspect_flags);
   void createTextureImageView();
   void createImage(uint32_t imw, uint32_t imh,
                    VkFormat format, VkImageTiling tiling,

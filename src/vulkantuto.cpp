@@ -104,6 +104,9 @@ void HelloTriangle::initVulkan() {
   // createCommandPool();
   command_pool = vk_command_pool(physical_dev, logical_dev);
 
+  // 11. create depth image
+  createDepthRessources();
+
   // 11. create texture images
   createTextureImage();
 
@@ -715,12 +718,60 @@ void HelloTriangle::createFramebuffers() {
     //
   }
 }
+void HelloTriangle::createDepthRessources() {
+    VkFormat depth_format = findDepthFormat();
+    auto width = swap_chain.sextent.width;
+    auto height = swap_chain.sextent.height;
+    auto tiling = VK_IMAGE_TILING_OPTIMAL;
+    auto usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    auto memflag = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    createImage(width, height, depth_format, tiling, usage, memflag,
+            depth_image, depth_image_memory);
+    depth_image_view = createImageView(depth_image, depth_format,
+            VK_IMAGE_ASPECT_DEPTH_BIT);
+
+}
+VkFormat HelloTriangle::findSupportedFormat(
+    const std::vector<VkFormat> &candidates,
+    VkImageTiling tiling, VkFormatFeatureFlags features) {
+  //
+  for (VkFormat candidate : candidates) {
+    VkFormatProperties props;
+    vkGetPhysicalDeviceFormatProperties(
+        physical_dev.device(), candidate, &props);
+    if (tiling == VK_IMAGE_TILING_LINEAR &&
+        (props.linearTilingFeatures & features) ==
+            features) {
+      return candidate;
+    } else if (tiling == VK_IMAGE_TILING_OPTIMAL &&
+               (props.optimalTilingFeatures & features) ==
+                   features) {
+      return candidate;
+    }
+    throw std::runtime_error(
+        "failed to find supported depth format");
+  }
+}
+VkFormat HelloTriangle::findDepthFormat() {
+  auto candidates = {
+      VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT,
+      VK_FORMAT_D24_UNORM_S8_UINT,
+  };
+  auto tiling = VK_IMAGE_TILING_OPTIMAL;
+  auto features =
+      VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
+  return findSupportedFormat(candidates, tiling, features);
+}
+bool HelloTriangle::hasStencilSupport(VkFormat format) {
+  return format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
+         format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
 void HelloTriangle::createTextureImage() {
   //
   int imwidth, imheight, imchannel;
   unsigned char *pixels =
-      stbi_load("assets/textures/callimachusCover.png", &imwidth,
-                &imheight, &imchannel, 0);
+      stbi_load("assets/textures/callimachusCover.png",
+                &imwidth, &imheight, &imchannel, 0);
   VkDeviceSize imsize = imwidth * imheight * 4;
   if (!pixels) {
     throw std::runtime_error(
@@ -887,15 +938,15 @@ void HelloTriangle::copyBufferToImage(VkBuffer buffer,
 }
 VkImageView
 HelloTriangle::createImageView(VkImage image,
-                               VkFormat image_format) {
+                               VkFormat image_format,
+                               VkImageAspectFlags aspect_flags) {
   VkImageViewCreateInfo createInfo{};
   createInfo.sType =
       VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
   createInfo.image = image;
   createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
   createInfo.format = image_format;
-  createInfo.subresourceRange.aspectMask =
-      VK_IMAGE_ASPECT_COLOR_BIT;
+  createInfo.subresourceRange.aspectMask = aspect_flags;
   createInfo.subresourceRange.baseMipLevel = 0;
   createInfo.subresourceRange.levelCount = 1;
   createInfo.subresourceRange.baseArrayLayer = 0;
@@ -910,7 +961,7 @@ void HelloTriangle::createTextureImageView() {
   //
   auto imformat = VK_FORMAT_R8G8B8A8_SRGB;
   texture_image_view =
-      createImageView(texture_image, imformat);
+      createImageView(texture_image, imformat, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 void HelloTriangle::createTextureSampler() {
   VkPhysicalDeviceProperties props{};
@@ -1167,9 +1218,10 @@ void HelloTriangle::createDescriptorSets() {
     dwset[1].pImageInfo = &imageInfo;
 
     //
-    vkUpdateDescriptorSets(logical_dev.device(),
-            static_cast<uint32_t>(dwset.size()), dwset.data(),
-                           0, nullptr);
+    vkUpdateDescriptorSets(
+        logical_dev.device(),
+        static_cast<uint32_t>(dwset.size()), dwset.data(),
+        0, nullptr);
   }
 }
 /** Descriptor layout for binding*/
