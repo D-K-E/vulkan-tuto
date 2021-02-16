@@ -184,7 +184,17 @@ public:
       VkPipelineLayout &pipeline_layout,
       std::vector<VkBuffer> &uniform_buffers,
       std::vector<VkDeviceMemory> &uniform_buffer_memories,
-      VkDescriptorPool &descriptor_pool) {
+      VkDescriptorPool &descriptor_pool,
+      VkImage &depth_image, VkImageView &depth_image_view,
+      VkDeviceMemory &depth_image_memory
+      ) {
+    // clear out depth image view
+    vkDestroyImageView(logical_dev.device(),
+                       depth_image_view, nullptr);
+    vkDestroyImage(logical_dev.device(), depth_image,
+                   nullptr);
+    vkFreeMemory(logical_dev.device(), depth_image_memory,
+                 nullptr);
     //
     vkFreeCommandBuffers(
         logical_dev.device(), command_pool,
@@ -216,7 +226,8 @@ public:
                    uniform_buffer_memories[i], nullptr);
     }
     // 5. destroy descriptor pool
-    vkDestroyDescriptorPool(logical_dev.device(), descriptor_pool, nullptr);
+    vkDestroyDescriptorPool(logical_dev.device(),
+                            descriptor_pool, nullptr);
   }
 };
 }

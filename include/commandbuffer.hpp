@@ -1,6 +1,7 @@
 // command buffer for vulkan application
 #pragma once
 //
+#include <cstdint>
 #include <external.hpp>
 #include <framebuffer.hpp>
 #include <ldevice.hpp>
@@ -145,8 +146,14 @@ public:
     renderPassInfo.renderArea.offset = {render_offset_x,
                                         render_offset_y};
     renderPassInfo.renderArea.extent = swap_chain_extent;
-    renderPassInfo.clearValueCount = clearValueCount;
-    renderPassInfo.pClearValues = &clearColor;
+
+    std::array<VkClearValue, 2> cvalues{};
+    cvalues[0].color = {0.0f, 0.0f, 0.0f, 1.0f};
+    cvalues[1].depthStencil = {1.0f, 0};
+
+    renderPassInfo.clearValueCount =
+        static_cast<uint32_t>(cvalues.size());
+    renderPassInfo.pClearValues = cvalues.data();
 
     // 3. give command to start rendering pass
     vkCmdBeginRenderPass(buffer, &renderPassInfo,
@@ -176,48 +183,6 @@ public:
                      instance_count, first_vertex_index,
                      first_instance_index, 0);
 
-    vkCmdEndRenderPass(buffer);
-    CHECK_VK(vkEndCommandBuffer(buffer),
-             "failed to register command buffer");
-  }
-  void mk_cmd_buffer(
-      vulkan_buffer<VkFramebuffer> &sc_framebuffer,
-      VkRenderPass &render_pass,
-      VkExtent2D swap_chain_extent,
-      VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
-      std::vector<uint16_t> indices,
-      VkCommandBufferBeginInfo beginInfo,
-      VkRenderPassBeginInfo renderPassInfo,
-      VkDrawInfo drawInfo,
-      VkSubpassContents subpass_contents =
-          VK_SUBPASS_CONTENTS_INLINE,
-      VkPipelineBindPoint graphics_pass_bind_point =
-          VK_PIPELINE_BIND_POINT_GRAPHICS) {
-    //
-    // 1. create command buffer info
-    CHECK_VK(vkBeginCommandBuffer(buffer, &beginInfo),
-             "failed to begin recording commands");
-
-    // 2.
-    vkCmdBeginRenderPass(buffer, &renderPassInfo,
-                         subpass_contents);
-
-    // 3.
-    vkCmdBindPipeline(buffer, graphics_pass_bind_point,
-                      graphics_pipeline);
-
-    // 5. bind vertex buffer to command buffer
-    VkBuffer vertex_buffers[] = {vertex_buffer};
-    VkDeviceSize vertex_offsets[] = {0};
-    vkCmdBindVertexBuffers(buffer, 0, 1, vertex_buffers,
-                           vertex_offsets);
-
-    // 4.
-    vkCmdDraw(buffer, 3, drawInfo.instance_count,
-              drawInfo.first_vertex_index,
-              drawInfo.first_instance_index);
-
-    // 5.
     vkCmdEndRenderPass(buffer);
     CHECK_VK(vkEndCommandBuffer(buffer),
              "failed to register command buffer");
