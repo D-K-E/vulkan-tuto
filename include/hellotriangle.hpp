@@ -1,5 +1,6 @@
 #pragma once
 #include <commandbuffer.hpp>
+#include <cstdint>
 #include <debug.hpp>
 #include <external.hpp>
 #include <framebuffer.hpp>
@@ -18,6 +19,11 @@ namespace vtuto {
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
+
+//
+const std::string model_path = "./assets/models/viking.obj";
+const std::string model_texture_path =
+    "./assets/models/viking.png";
 
 class HelloTriangle {
 public:
@@ -81,6 +87,10 @@ public:
   VkImage depth_image;
   VkImageView depth_image_view;
   VkDeviceMemory depth_image_memory;
+
+  /** vertices per scene and indices per scene*/
+  std::vector<Vertex> vertices;
+  std::vector<std::uint32_t> indices;
 
   /** vertex buffer*/
   VkBuffer vertex_buffer;
@@ -307,6 +317,7 @@ number of indices for given device family.
       VkImageTiling tiling, VkFormatFeatureFlags features);
   VkFormat findDepthFormat();
   bool hasStencilSupport(VkFormat format);
+  void loadModel();
   void createVertexBuffer();
   void createIndexBuffer();
   void createUniformBuffer();

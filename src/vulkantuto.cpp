@@ -1,5 +1,4 @@
 // main file
-#include <cstdint>
 #include <debug.hpp>
 #include <external.hpp>
 #include <hellotriangle.hpp>
@@ -119,6 +118,8 @@ void HelloTriangle::initVulkan() {
   // 15. create texture sampler
   createTextureSampler();
 
+  loadModel();
+
   // 16. create vertex buffer
   createVertexBuffer();
 
@@ -232,8 +233,8 @@ void HelloTriangle::cleanUp() {
       logical_dev, command_pool.pool, v,
       swapchain_framebuffers, render_pass,
       graphics_pipeline, pipeline_layout, uniform_buffers,
-      uniform_buffer_memories, descriptor_pool,
-      depth_image, depth_image_view, depth_image_memory);
+      uniform_buffer_memories, descriptor_pool, depth_image,
+      depth_image_view, depth_image_memory);
 
   // destroy texture sampler
   vkDestroySampler(logical_dev.device(), texture_sampler,
@@ -793,9 +794,10 @@ void HelloTriangle::createDepthRessources() {
               memflag, depth_image, depth_image_memory);
   depth_image_view = createImageView(
       depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
-//transitionImageLayout(
-//    depth_image, depth_format, VK_IMAGE_LAYOUT_UNDEFINED,
-//    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+  // transitionImageLayout(
+  //    depth_image, depth_format,
+  //    VK_IMAGE_LAYOUT_UNDEFINED,
+  //    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 VkFormat HelloTriangle::findSupportedFormat(
     const std::vector<VkFormat> &candidates,
@@ -835,9 +837,10 @@ bool HelloTriangle::hasStencilSupport(VkFormat format) {
 void HelloTriangle::createTextureImage() {
   //
   int imwidth, imheight, imchannel;
-  unsigned char *pixels =
-      stbi_load("assets/textures/callimachusCover.png",
-                &imwidth, &imheight, &imchannel, 0);
+  const char* mpath = model_texture_path.c_str();
+  stbi_uc *pixels =
+      stbi_load(mpath, &imwidth,
+                &imheight, &imchannel, STBI_rgb_alpha);
   VkDeviceSize imsize = imwidth * imheight * 4;
   if (!pixels) {
     throw std::runtime_error(
@@ -848,6 +851,7 @@ void HelloTriangle::createTextureImage() {
   VkMemoryPropertyFlags mem_flags =
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
       VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
   createBuffer(imsize, usage, mem_flags, staging_buffer,
                stage_buffer_memory);
   void *data;
@@ -1124,9 +1128,43 @@ void HelloTriangle::endSignalCommand(
   vkFreeCommandBuffers(logical_dev.device(),
                        command_pool.pool, 1, &cbuffer);
 }
+void HelloTriangle::loadModel() {
+  tinyobj::attrib_t attrib;
+  std::vector<tinyobj::shape_t> shapes;
+  std::vector<tinyobj::material_t> materials;
+  std::string warn, err;
+  if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn,
+                        &err, model_path.c_str())) {
+    throw std::runtime_error(warn + err);
+  }
+  std::unordered_map<Vertex, std::uint32_t> uVertices{};
+  for (const auto &shape : shapes) {
+    for (const auto &index : shape.mesh.indices) {
+      Vertex v{};
+      auto stride = 3;
+      auto vindex = index.vertex_index;
+      v.pos = {attrib.vertices[stride * vindex + 0],
+               attrib.vertices[stride * vindex + 1],
+               attrib.vertices[stride * vindex + 2]};
+      auto tex_stride = 2;
+      auto tindex = index.texcoord_index;
+      v.texCoord = {
+          attrib.texcoords[tex_stride * tindex + 0],
+          1.0f-attrib.texcoords[tex_stride * tindex + 1]};
+      v.color = {1.0f, 1.0f, 1.0f};
+
+      if (uVertices.count(v) == 0) {
+        uVertices[v] =
+            static_cast<uint32_t>(vertices.size());
+        vertices.push_back(v);
+      }
+      indices.push_back(uVertices[v]);
+    }
+  }
+}
 void HelloTriangle::createVertexBuffer() {
   // 1. buffer related info
-  auto device_size = square_vs.size() * sizeof(Vertex);
+  auto device_size = vertices.size() * sizeof(vertices[0]);
   VkDeviceSize vk_device_size = device_size;
   auto mem_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                    VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
@@ -1143,7 +1181,7 @@ void HelloTriangle::createVertexBuffer() {
   void *data;
   vkMapMemory(logical_dev.device(), staging_memory, 0,
               device_size, 0, &data);
-  memcpy(data, square_vs.data(),
+  memcpy(data, vertices.data(),
          static_cast<size_t>(device_size));
   vkUnmapMemory(logical_dev.device(), staging_memory);
 
@@ -1167,8 +1205,7 @@ void HelloTriangle::createVertexBuffer() {
 }
 void HelloTriangle::createIndexBuffer() {
   // 1. buffer related info
-  VkDeviceSize size =
-      square_indices.size() * sizeof(square_indices[0]);
+  VkDeviceSize size = indices.size() * sizeof(indices[0]);
 
   VkBuffer staging_buffer;
   VkDeviceMemory staging_memory;
@@ -1183,7 +1220,7 @@ void HelloTriangle::createIndexBuffer() {
   void *data;
   vkMapMemory(logical_dev.device(), staging_memory, 0, size,
               0, &data);
-  memcpy(data, square_indices.data(),
+  memcpy(data, indices.data(),
          static_cast<size_t>(size));
   vkUnmapMemory(logical_dev.device(), staging_memory);
 
@@ -1428,7 +1465,7 @@ void HelloTriangle::createCommandBuffers() {
     auto buffer = vulkan_buffer<VkCommandBuffer>(
         cmd_buffers.get(i), swapchain_framebuffers[i],
         render_pass, swap_chain.sextent, graphics_pipeline,
-        vertex_buffer, index_buffer, square_indices,
+        vertex_buffer, index_buffer, indices,
         descriptor_sets[i], pipeline_layout);
   }
 }
@@ -1477,8 +1514,8 @@ void HelloTriangle::recreateSwapchain() {
       logical_dev, command_pool.pool, vs,
       swapchain_framebuffers, render_pass,
       graphics_pipeline, pipeline_layout, uniform_buffers,
-      uniform_buffer_memories, descriptor_pool,
-      depth_image, depth_image_view, depth_image_memory);
+      uniform_buffer_memories, descriptor_pool, depth_image,
+      depth_image_view, depth_image_memory);
   swap_chain = swapchain(physical_dev, logical_dev, window);
   // 1. render pass
   createRenderPass();
@@ -1616,7 +1653,7 @@ void HelloTriangle::draw() {
 }
 extern "C" int main() {
   std::string wtitle = "Vulkan Window Title";
-  HelloTriangle hello(wtitle, (uint32_t)640, (uint32_t)480);
+  HelloTriangle hello(wtitle, (uint32_t)WIDTH, (uint32_t)HEIGHT);
 
   try {
     hello.run();

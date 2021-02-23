@@ -9,9 +9,15 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+//
+
 // stb image
 #define STB_IMAGE_IMPLEMENTATION
 #include <thirdparty/stb_image.h>
+//
+// tiny obj loader
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <thirdparty/tiny_obj_loader.h>
 //
 
 //
@@ -20,9 +26,9 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <iostream>
 #include <optional>
 #include <set>
+#include <unordered_map>
 #include <sstream>
 #include <stdexcept>
 #include <string>

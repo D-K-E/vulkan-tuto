@@ -1,7 +1,6 @@
 // command buffer for vulkan application
 #pragma once
 //
-#include <cstdint>
 #include <external.hpp>
 #include <framebuffer.hpp>
 #include <ldevice.hpp>
@@ -59,7 +58,7 @@ public:
       VkRenderPass &render_pass,
       VkExtent2D swap_chain_extent,
       VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
-      VkBuffer index_buffer, std::vector<uint16_t> indices,
+      VkBuffer index_buffer, std::vector<uint32_t> indices,
       VkDescriptorSet descriptor_set,
       VkPipelineLayout pipeline_layout,
       int32_t render_offset_x = 0,
@@ -91,7 +90,7 @@ public:
       VkRenderPass &render_pass,
       VkExtent2D swap_chain_extent,
       VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
-      VkBuffer index_buffer, std::vector<uint16_t> indices,
+      VkBuffer index_buffer, std::vector<uint32_t> indices,
       VkDescriptorSet descriptor_set,
       VkPipelineLayout pipeline_layout,
       VkCommandBufferBeginInfo beginInfo,
@@ -114,7 +113,7 @@ public:
       VkRenderPass &render_pass,
       VkExtent2D swap_chain_extent,
       VkPipeline graphics_pipeline, VkBuffer vertex_buffer,
-      VkBuffer index_buffer, std::vector<uint16_t> indices,
+      VkBuffer index_buffer, std::vector<uint32_t> indices,
       VkDescriptorSet descriptor_set,
       VkPipelineLayout pipeline_layout,
       int32_t render_offset_x = 0,
@@ -170,7 +169,7 @@ public:
                            vertex_offsets);
     // 6. bind index buffer to command buffer
     vkCmdBindIndexBuffer(buffer, index_buffer, 0,
-                         VK_INDEX_TYPE_UINT16);
+                         VK_INDEX_TYPE_UINT32);
 
     // 7. bind descriptor set
     vkCmdBindDescriptorSets(

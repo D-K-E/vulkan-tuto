@@ -1,6 +1,7 @@
 #pragma once
 // vertex object
 #include <external.hpp>
+#include <sstream>
 
 struct Vertex {
   glm::vec3 pos;
@@ -40,7 +41,29 @@ struct Vertex {
 
     return attributes;
   }
+  bool operator==(const Vertex &o) const {
+    auto c1 = o.pos.x == pos.x && o.pos.y == pos.y &&
+              o.pos.z == pos.z;
+    auto c2 = o.color.x == color.x &&
+              o.color.y == color.y && o.color.z == color.z;
+    auto c3 = o.texCoord.x == texCoord.x &&
+              o.texCoord.y == texCoord.y;
+    return c1 && c2 && c3;
+  }
 };
+
+std::size_t glm_vec_hash(glm::vec2 v) {
+  auto h1x_h = std::hash<float>{}(v.x);
+  auto h1y_h = std::hash<float>{}(v.y);
+  auto h1xy_h = h1x_h ^ (h1y_h << 1);
+  return h1xy_h;
+}
+
+std::size_t glm_vec_hash(glm::vec3 v) {
+  auto h1xy_h = glm_vec_hash(glm::vec2(v.x, v.y));
+  auto h1 = h1xy_h ^ (std::hash<float>()(v.z) << 1);
+  return h1 >> 1;
+}
 
 inline std::ostream &operator<<(std::ostream &out,
                                 const Vertex &v) {
@@ -51,3 +74,15 @@ inline std::ostream &operator<<(std::ostream &out,
              << " vertex texCoord x" << v.texCoord.x
              << " y: " << v.texCoord.y << std::endl;
 }
+
+namespace std {
+template <> struct hash<Vertex> {
+  size_t operator()(Vertex const &v) const {
+    //
+    stringstream ss;
+    ss << v;
+    string sv = ss.str();
+    return hash<string>()(sv);
+  }
+};
+};
