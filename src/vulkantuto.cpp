@@ -70,24 +70,57 @@ Steps to initialize a vulkan api
 */
 void HelloTriangle::initVulkan() {
   //
-  // 1. Create a vulkan instance
+  /**
+    1. Create a vulkan instance
+    Define api version, required extensions by the application,
+    enable validation layers
+   */
   createInstance();
 
   // 2. Setup debug messenger
+  /**
+    Specify the severity of validation layers:
+    - which info should be shown
+    - what should be warning level
+    - etc.
+   */
   setupDebugMessenger();
 
-  // 3. Create physical device
+  /** 
+    3. Create physical device
+    Create physical device by creating the surface from glfw window.
+    Then we enumerate available physical devices in the host machine. This
+    does not necessarily mean having multiple gpu's, it is possible that the
+    cpu also understands vulkan (intel?), however the major use case for this
+    is having multiple gpus.
+    Each devices is tested against a set of conditions. These conditions are
+    determined by the nature of our application. The criteria is specified in
+    the body of is_device_suitable() function.
+   */
   physical_dev =
       vulkan_device<VkPhysicalDevice>(&instance, window);
 
-  // 4. Create logical device
+  /** 4. Create logical device
+   */
   logical_dev = vulkan_device<VkDevice>(
       enableValidationLayers, physical_dev);
 
   // 5. create swap chain
   swap_chain = swapchain(physical_dev, logical_dev, window);
 
-  // 7. create render pass
+  /** 
+    7. create render pass
+
+    Specify attachments to be used in render pass.
+    Essentially a color attachment and a depth attachment is created.
+    Then these are passed to subpass description struct. This struct is then
+    passed to a subpass dependency struct.
+    The dependency struct takes flags about when to use the subpass, what is
+    it can access to, etc.
+    Then we attach attachments and the subpass struct to a renderpass info.
+    The renderpass info then is used to create a render pass from logical
+    device
+   */
   createRenderPass();
 
   // 8. descriptor set layout
@@ -131,6 +164,7 @@ void HelloTriangle::initVulkan() {
 
   // 19. create descriptor pool
   createDescriptorPool();
+
   // 20. create descriptor sets
   createDescriptorSets();
 
@@ -164,17 +198,27 @@ void HelloTriangle::initVulkan() {
 void HelloTriangle::createInstance() {
   // 1. Create Application info struct
   VkApplicationInfo appInfo{};
-  appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-  appInfo.pApplicationName = "My Triangle";
-  appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.pEngineName = "No Engine";
-  appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = VK_API_VERSION_1_2;
+
+  appInfo.sType =
+      VK_STRUCTURE_TYPE_APPLICATION_INFO; /** structure type
+                                             */
+  appInfo.pApplicationName =
+      "My Triangle"; /** utf-8 string name for app*/
+  appInfo.applicationVersion =
+      VK_MAKE_VERSION(1, 0, 0); /**semver uint app version*/
+  appInfo.pEngineName =
+      "No Engine"; /** utf-8 string name for used engine*/
+  appInfo.engineVersion =
+      VK_MAKE_VERSION(1, 0, 0); /** unsigned int*/
+  appInfo.apiVersion = VK_API_VERSION_1_2; /** uint32_t*/
 
   // 2. Pass info struct to instance info
   VkInstanceCreateInfo createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-  createInfo.pApplicationInfo = &appInfo;
+  createInfo.sType =
+      VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO; /** struct
+                                                 type*/
+  createInfo.pApplicationInfo =
+      &appInfo; /**VkApplicationInfo reference*/
 
   // 3. Request extensions from glfw in order to visualize
   // vulkan
@@ -182,8 +226,10 @@ void HelloTriangle::createInstance() {
   auto extensions = getRequiredExtensions();
 
   //
+  /** pass number of enabled extensions*/
   createInfo.enabledExtensionCount =
       static_cast<uint32_t>(extensions.size());
+  /** std::vector<const char *> containing extensions */
   createInfo.ppEnabledExtensionNames = extensions.data();
 
   // 4. create debug messenger handler
@@ -204,6 +250,37 @@ void HelloTriangle::createInstance() {
   }
 
   // 5. create the instance with the given information
+  /**
+    \param createInfo: create info specifies the application extentions
+    its version, its engine, and the api version.
+
+    \param pAllocator, nullptr here. Normally it has to be of the following
+type:
+    typedef struct VkAllocationCallbacks {
+    void*                                   pUserData; 
+    PFN_vkAllocationFunction                pfnAllocation;
+    PFN_vkReallocationFunction              pfnReallocation;
+    PFN_vkFreeFunction                      pfnFree;
+    PFN_vkInternalAllocationNotification    pfnInternalAllocation;
+    PFN_vkInternalFreeNotification          pfnInternalFree;
+} VkAllocationCallbacks;
+
+- pUserData: value to be interpreted by the callbacks.
+- pfnAllocation: pointer to application defined memory allocation function.
+Its signature must be of the following type:
+typedef void* (VKAPI_PTR *PFN_vkAllocationFunction)(
+    void*                                       pUserData,
+    size_t                                      size,
+    size_t                                      alignment,
+    VkSystemAllocationScope                     allocationScope);
+
+- pUserData: data to be allocated defined by the user.
+- size requested allocation amount
+- alignment requested alignment amount in bytes must be a power of two
+- allocationScope a flag from VkSystemAllocationScope enum.
+
+   */
+
   CHECK_VK(
       vkCreateInstance(&createInfo, nullptr, &instance),
       "Failed to create Vulkan instance");
@@ -353,15 +430,63 @@ void HelloTriangle::populateDebugMessengerCreateInfo(
   createInfo.sType =
       VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
   //
+  /**
+    Determines message severity. If null, messages are
+skipped
+
+VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: specifies
+the most verbose
+output from validation layers
+
+VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: specifies
+messages that *may*
+indicate an api bug.
+
+VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: outputs error
+message when the
+api has violated a valid usage condition of the
+specification.
+   */
   createInfo.messageSeverity =
       VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+  /**
+VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT: specifies if
+some general event
+has occured
+
+VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT: specifies if
+some event has
+occured during the validation stage against the vulkan
+specification, meaning
+that the application has either an undefined behaviour or an
+error.
+
+VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT: specifies
+if a potential
+suboptimal use of Vulkan API is happening in the
+application.
+   */
   createInfo.messageType =
       VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
   //
+  /**
+pfnUserCallback: specified as a static function in this api.
+typedef VkBool32 (VKAPI_PTR
+*PFN_vkDebugUtilsMessangerCallbackEXT
+)(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+    const VkDebugUtilsMessengerCallbackDataEXT*
+pCallbackData,
+    void* pUserData
+)
+\param messageSeverity: same as createInfo
+\param messageType: same as createInfo
+VkDebugUtilsMessengerCallbackDataEXT
+   */
   createInfo.pfnUserCallback = debugCallback;
 }
 
@@ -475,6 +600,13 @@ void HelloTriangle::setupDebugMessenger() {
           instance, &createInfo, nullptr, &debugMessenger),
       "failed to create and setup debug messenger");
 }
+/**
+  \brief get required extensions from glfw and debug utils
+
+  First we query glfw api for enabled extensions. Then we
+  add the debug flag
+  to enable validation layers.
+ */
 std::vector<const char *>
 HelloTriangle::getRequiredExtensions() {
   uint32_t glfwExtensionCount = 0;
@@ -837,10 +969,9 @@ bool HelloTriangle::hasStencilSupport(VkFormat format) {
 void HelloTriangle::createTextureImage() {
   //
   int imwidth, imheight, imchannel;
-  const char* mpath = model_texture_path.c_str();
-  stbi_uc *pixels =
-      stbi_load(mpath, &imwidth,
-                &imheight, &imchannel, STBI_rgb_alpha);
+  const char *mpath = model_texture_path.c_str();
+  stbi_uc *pixels = stbi_load(mpath, &imwidth, &imheight,
+                              &imchannel, STBI_rgb_alpha);
   VkDeviceSize imsize = imwidth * imheight * 4;
   if (!pixels) {
     throw std::runtime_error(
@@ -1150,7 +1281,7 @@ void HelloTriangle::loadModel() {
       auto tindex = index.texcoord_index;
       v.texCoord = {
           attrib.texcoords[tex_stride * tindex + 0],
-          1.0f-attrib.texcoords[tex_stride * tindex + 1]};
+          1.0f - attrib.texcoords[tex_stride * tindex + 1]};
       v.color = {1.0f, 1.0f, 1.0f};
 
       if (uVertices.count(v) == 0) {
@@ -1220,8 +1351,7 @@ void HelloTriangle::createIndexBuffer() {
   void *data;
   vkMapMemory(logical_dev.device(), staging_memory, 0, size,
               0, &data);
-  memcpy(data, indices.data(),
-         static_cast<size_t>(size));
+  memcpy(data, indices.data(), static_cast<size_t>(size));
   vkUnmapMemory(logical_dev.device(), staging_memory);
 
   // 3. declare index buffer
@@ -1653,7 +1783,8 @@ void HelloTriangle::draw() {
 }
 extern "C" int main() {
   std::string wtitle = "Vulkan Window Title";
-  HelloTriangle hello(wtitle, (uint32_t)WIDTH, (uint32_t)HEIGHT);
+  HelloTriangle hello(wtitle, (uint32_t)WIDTH,
+                      (uint32_t)HEIGHT);
 
   try {
     hello.run();

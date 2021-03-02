@@ -30,6 +30,10 @@ public:
         QueuFamilyIndices::find_family_indices(
             physical_dev.pdevice, physical_dev.surface);
 
+    /**
+      VkDeviceQueueCreateInfo
+      queueFamilyIndex
+     */
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies = {
         indices.graphics_family.value(),
